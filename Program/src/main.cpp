@@ -1,18 +1,55 @@
+/**
+ * @file main.cpp
+ * @brief Simulador de Interconnect para Sistemas Multiprocesador.
+ *
+ * Este programa permite inicializar el sistema, ejecutar la simulación
+ * y mostrar estadísticas de los PEs y del Interconnect.
+ *
+ */
+
 #include <iostream>
 #include <string>
 #include <limits>
 
-// Compile with: g++ -std=c++20 main.cpp -o interconnect_sim
-
-constexpr int MAX_PES = 32;          // Upper limit for Processing Elements
-int pe_count = 0;                    // Global variable to store the configured PE count
+constexpr int MAX_PES = 32;          /**< Límite máximo de PEs según especificación */
+int pe_count = 0;                    /**< Cantidad de PEs configurada por el usuario */
 
 // Forward declarations
+
+/**
+ * @brief Muestra el menú principal de opciones.
+ */
 void show_menu();
+
+/**
+ * @brief Solicita al usuario el número de PEs e inicializa el sistema.
+ *
+ * Pide la cantidad de Processing Elements (PEs) y realiza la configuración
+ * de caches, interconnect, memoria compartida y unidad de estadísticas.
+ */
 void initialize_system();
+
+/**
+ * @brief Ejecuta la simulación de un número fijo de ciclos.
+ *
+ * Revisa que el sistema esté inicializado y, en caso afirmativo,
+ * simula los ciclos de ejecución de los PEs y el intercambio de mensajes.
+ */
 void run_simulation();
+
+/**
+ * @brief Muestra las estadísticas resultantes de la simulación.
+ *
+ * Lee los resultados guardados en archivo o variables internas
+ * y presenta datos de rendimiento y tráfico de mensajes.
+ */
 void show_statistics();
 
+/**
+ * @brief Punto de entrada de la aplicación.
+ *
+ * @return int Código de estado de la aplicación (0 indica éxito).
+ */
 int main() {
     bool running = true;
     int choice = -1;
@@ -23,7 +60,7 @@ int main() {
         std::cout << "Select option: ";
 
         if (!(std::cin >> choice)) {
-            // Clear invalid input and prompt again
+            // Limpia entrada inválida
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             std::cout << "[Error] Invalid input. Please enter a number.\n";
@@ -55,6 +92,9 @@ int main() {
 
 // ---------------- Helper Function Definitions ----------------
 
+/**
+ * @brief Implementación del menú de opciones.
+ */
 void show_menu() {
     std::cout << "\n--- Main Menu ---\n"
               << "1. Initialize System\n"
@@ -63,13 +103,15 @@ void show_menu() {
               << "0. Exit\n";
 }
 
+/**
+ * @brief Configura el sistema según la cantidad de PEs indicada.
+ *
+ * Realiza la validación de entrada y despliega pasos de inicialización.
+ */
 void initialize_system() {
-
     int requested_pes = 0;
 
     std::cout << "\n[Init] Enter number of Processing Elements (1-" << MAX_PES << "): ";
-
-    // Keep prompting until a valid number is provided
     while (true) {
         if (!(std::cin >> requested_pes)) {
             std::cin.clear();
@@ -77,11 +119,10 @@ void initialize_system() {
             std::cout << "[Error] Invalid input. Please enter an integer between 1 and " << MAX_PES << ": ";
             continue;
         }
-
         if (requested_pes < 1 || requested_pes > MAX_PES) {
             std::cout << "[Error] Value out of range. Please enter a number between 1 and " << MAX_PES << ": ";
         } else {
-            break; // Valid input
+            break;
         }
     }
 
@@ -89,19 +130,22 @@ void initialize_system() {
     std::cout << "[Init] System configured with " << pe_count << " PEs.\n";
 
     std::cout << "[Init] Setting up PEs...\n";
-    std::cout << "[Init] Getting PE's QoS...\n";
+    std::cout << "[Init] Getting PEs' QoS...\n";
     std::cout << "[Init] Setting up Caches...\n";
     std::cout << "[Init] Setting up Interconnect...\n";
     std::cout << "[Init] Setting up Shared Memory...\n";
     std::cout << "[Init] Getting simulation times...\n";
     std::cout << "[Init] Compiling Instructions...\n";
-    std::cout << "[Init] Setting PEs' Instructions Memory...\n";
+    std::cout << "[Init] Setting PEs' Instruction Memory...\n";
     std::cout << "[Init] Setting up Statistics Unit...\n";
 
     // TODO: Initialization logic here
     std::cout << "[Init] Initialization complete.\n";
 }
 
+/**
+ * @brief Simula un número fijo de ciclos de operación.
+ */
 void run_simulation() {
     if (pe_count == 0) {
         std::cout << "\n[Sim] System not initialized. Please initialize first.\n";
@@ -110,9 +154,7 @@ void run_simulation() {
 
     std::cout << "\n[Sim] Starting simulation with " << pe_count << " PEs...\n";
     const int cycles = 10; // Placeholder value
-
     for (int cycle = 0; cycle < cycles; ++cycle) {
-        // Placeholder logic for a simulation cycle
         std::cout << "[Sim] Cycle " << (cycle + 1) << " executed.\n";
     }
 
@@ -121,6 +163,9 @@ void run_simulation() {
     std::cout << "[Sim] Results saved in file.\n";
 }
 
+/**
+ * @brief Muestra estadísticas almacenadas tras la simulación.
+ */
 void show_statistics() {
     if (pe_count == 0) {
         std::cout << "\n[Stats] No statistics available: system not initialized.\n";

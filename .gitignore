@@ -31,5 +31,6 @@
 *.out
 *.app
 
-#
+# Program
 Program/interconnect_sim
+.vscode/settings.json
