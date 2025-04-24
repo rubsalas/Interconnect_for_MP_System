@@ -5,9 +5,9 @@ Este es el primer proyecto del curso CE-4302 Arquitectura de Computadores II del
 
 Las instrucciones soportadas por los workloads de pruebas poseen el siguiente formato
 
-WRITE_MEM <SRC>, <ADDR>, <NUM_OF_CACHE_LINES>, <START_CACHE_LINE>, <QoS>
-READ_MEM <SRC>, <ADDR>, <SIZE>, <QoS>
-BROADCAST_INVALIDATE <SRC>, <CACHE_LINE>, <QoS>
+- WRITE_MEM <SRC>, <ADDR>, <NUM_OF_CACHE_LINES>, <START_CACHE_LINE>, <QoS>
+- READ_MEM <SRC>, <ADDR>, <SIZE>, <QoS>
+- BROADCAST_INVALIDATE <SRC>, <CACHE_LINE>, <QoS>
 
 Donde:
  <SRC> es un numero de 5 bits el cual representa el PE que envia la instruccion, 32 PEs posibles
