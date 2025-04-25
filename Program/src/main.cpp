@@ -7,12 +7,17 @@
  *
  */
 
+#include "../include/System.h"
+
 #include <iostream>
 #include <string>
 #include <limits>
 
 constexpr int MAX_PES = 32;          /**< Límite máximo de PEs según especificación */
 int pe_count = 0;                    /**< Cantidad de PEs configurada por el usuario */
+
+// Variable global (puntero) al simulador
+static System* interconnect_system = nullptr;
 
 // Forward declarations
 
@@ -111,6 +116,7 @@ void show_menu() {
 void initialize_system() {
     int requested_pes = 0;
 
+    // Usuario escoge la cantidad de PEs por utilizar en la simulacion
     std::cout << "\n[Init] Enter number of Processing Elements (1-" << MAX_PES << "): ";
     while (true) {
         if (!(std::cin >> requested_pes)) {
@@ -129,48 +135,35 @@ void initialize_system() {
     pe_count = requested_pes;
     std::cout << "[Init] System configured with " << pe_count << " PEs.\n";
 
-    std::cout << "[Init] Setting up PEs...\n";
-    std::cout << "[Init] Getting PEs' QoS...\n";
-    std::cout << "[Init] Setting up Caches...\n";
-    std::cout << "[Init] Setting up Interconnect...\n";
-    std::cout << "[Init] Setting up Shared Memory...\n";
-    std::cout << "[Init] Getting simulation times...\n";
-    std::cout << "[Init] Compiling Instructions...\n";
-    std::cout << "[Init] Setting PEs' Instruction Memory...\n";
-    std::cout << "[Init] Setting up Statistics Unit...\n";
+    // Inicializa la instancia global
+    interconnect_system = new System(pe_count);
 
-    // TODO: Initialization logic here
-    std::cout << "[Init] Initialization complete.\n";
+    // Llama la funcion para inicializar el System
+    interconnect_system->initialize();
 }
 
 /**
  * @brief Simula un número fijo de ciclos de operación.
  */
 void run_simulation() {
-    if (pe_count == 0) {
+    if (pe_count == 0 || !interconnect_system) {
         std::cout << "\n[Sim] System not initialized. Please initialize first.\n";
         return;
     }
 
     std::cout << "\n[Sim] Starting simulation with " << pe_count << " PEs...\n";
-    const int cycles = 10; // Placeholder value
-    for (int cycle = 0; cycle < cycles; ++cycle) {
-        std::cout << "[Sim] Cycle " << (cycle + 1) << " executed.\n";
-    }
 
-    std::cout << "[Sim] Simulation finished.\n";
-    std::cout << "[Sim] Saving results...\n";
-    std::cout << "[Sim] Results saved in file.\n";
+    interconnect_system->run();
 }
 
 /**
  * @brief Muestra estadísticas almacenadas tras la simulación.
  */
 void show_statistics() {
-    if (pe_count == 0) {
+    if (pe_count == 0 || !interconnect_system) {
         std::cout << "\n[Stats] No statistics available: system not initialized.\n";
         return;
     }
 
-    std::cout << "\n[Stats] Placeholder statistics for " << pe_count << " PEs from results file.\n";
+    interconnect_system->report_statistics();
 }
