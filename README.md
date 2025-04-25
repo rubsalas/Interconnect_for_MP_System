@@ -21,6 +21,7 @@ En este archivo puede ser visualizado el acomodo de los bits de las instruccione
  
 https://docs.google.com/spreadsheets/d/1nA-x_ndPWorXsLAwrE7hO1Qq5rFNstHbkzMkOFf6aBE/edit?usp=sharing
 
-Para ejecutar el compilador se debe realizar de la siguiente manera:
+Para el compilador se debe realizar de la siguiente manera:
 
-python3 compiler.py -i <archivo_entrada> -o <archivo_salida>
+g++ -std=c++20 Compiler.cpp main_compiler.cpp -o compiler
+./compiler -i test_input.asm -o output.txt
