@@ -16,12 +16,11 @@ void System::initialize() {
     initialize_pes(); // Funcion aparte que leerá el archivo
 
     // TODO: todas estas inicializaciones
+    std::cout << "[System] Setting PEs' Instruction Memory...\n";
     std::cout << "[System] Setting up Caches...\n";
     std::cout << "[System] Setting up Interconnect...\n";
     std::cout << "[System] Setting up Shared Memory...\n";
     std::cout << "[System] Getting simulation times...\n";
-    std::cout << "[System] Compiling Instructions...\n";
-    std::cout << "[System] Setting PEs' Instruction Memory...\n";
     std::cout << "[System] Setting up Statistics Unit...\n";
 
     std::cout << "[System] Initialization complete.\n";

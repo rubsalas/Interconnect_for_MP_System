@@ -4,7 +4,7 @@
 
 /**
  * @class PE
- * @brief Processing Element minimal con QoS.
+ * @brief Processing Element minimal con QoS, contador de programa e instrucción.
  */
 class PE {
 public:
@@ -20,7 +20,19 @@ public:
     /** @brief Devuelve el valor de QoS asignado. */
     uint8_t get_qos() const;
 
+    /** @brief Devuelve el valor del Program Counter. */
+    uint64_t get_pc() const;
+    /** @brief Establece el valor del Program Counter. */
+    void set_pc(uint64_t pc);
+
+    /** @brief Devuelve la instrucción de 64 bits actual. */
+    uint64_t get_actual_instruction() const;
+    /** @brief Establece la instrucción de 64 bits actual. */
+    void set_actual_instruction(uint64_t instr);
+
 private:
-    int     id_;   /**< ID del PE. */
-    uint8_t qos_;  /**< Calidad de servicio. */
+    int     id_;           /**< ID del PE. */
+    uint8_t qos_;          /**< Calidad de servicio. */
+    uint64_t pc_;          /**< Program Counter. */
+    uint64_t actual_instruction_; /**< Instrucción de 64 bits. */
 };

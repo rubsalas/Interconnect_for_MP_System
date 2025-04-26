@@ -27,6 +27,13 @@ static System* interconnect_system = nullptr;
 void show_menu();
 
 /**
+ * @brief Compila los ensambladores con las instrucciones de los PEs.
+ *
+ * Genera un binario de las instrucciones para que cada PE pueda ejecutarlas.
+ */
+void compile_instructions();
+
+/**
  * @brief Solicita al usuario el número de PEs e inicializa el sistema.
  *
  * Pide la cantidad de Processing Elements (PEs) y realiza la configuración
@@ -74,12 +81,15 @@ int main() {
 
         switch (choice) {
             case 1:
-                initialize_system();
+                compile_instructions();
                 break;
             case 2:
-                run_simulation();
+                initialize_system();
                 break;
             case 3:
+                run_simulation();
+                break;
+            case 4:
                 show_statistics();
                 break;
             case 0:
@@ -102,10 +112,22 @@ int main() {
  */
 void show_menu() {
     std::cout << "\n--- Main Menu ---\n"
-              << "1. Initialize System\n"
-              << "2. Run Simulation\n"
-              << "3. Show Statistics\n"
+              << "1. Compile Assembly\n"
+              << "2. Initialize System\n"
+              << "3. Run Simulation\n"
+              << "4. Show Statistics\n"
               << "0. Exit\n";
+}
+
+/**
+ * @brief Obtiene las instrucciones y las pasa a un binario que entienden
+ * los PEs.
+ */
+void compile_instructions() {
+
+    // TODO: Iniciar acá la compilacion ya que no es parte del Sistema en si.
+    std::cout << "\n[Init] Compiling assembly...\n";
+    std::cout << "[Init] Binary ready for execution on PEs.\n";
 }
 
 /**

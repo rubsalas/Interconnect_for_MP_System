@@ -30,8 +30,8 @@ public:
     void debug_print_pes() const;
 
 private:
-    std::vector<PE> pes_;        /**< Vector de PEs del sistema. */
     int total_pes_;              /**< Número de PEs configurados. */
+    std::vector<PE> pes_;        /**< Vector de PEs del sistema. */
 
     /**
      * @brief Crea e inicializa los PEs con QoS por defecto.
