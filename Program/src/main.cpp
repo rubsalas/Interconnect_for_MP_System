@@ -7,6 +7,7 @@
  *
  */
 
+#include "../include/Compiler.h"
 #include "../include/System.h"
 
 #include <iostream>
@@ -16,7 +17,10 @@
 constexpr int MAX_PES = 32;          /**< Límite máximo de PEs según especificación */
 int pe_count = 0;                    /**< Cantidad de PEs configurada por el usuario */
 
-// Variable global (puntero) al simulador
+// instancia global del Compiler
+static Compiler* compiler = nullptr;
+
+// Instancia global del System
 static System* interconnect_system = nullptr;
 
 // Forward declarations
@@ -123,10 +127,13 @@ void show_menu() {
  * @brief Obtiene las instrucciones y las pasa a un binario que entienden
  * los PEs.
  */
+/// @brief Invoca al compilador de directorios con rutas fijas por ahora.
 void compile_instructions() {
-
-    // TODO: Iniciar acá la compilacion ya que no es parte del Sistema en si.
     std::cout << "\n[Init] Compiling assembly...\n";
+    // Paths
+    const std::string in_dir  = "config/assemblers";
+    const std::string out_dir = "config/binaries";
+    compiler->compile_directory(in_dir, out_dir);
     std::cout << "[Init] Binary ready for execution on PEs.\n";
 }
 
@@ -166,6 +173,7 @@ void initialize_system() {
 
 /**
  * @brief Simula un número fijo de ciclos de operación.
+ * TODO
  */
 void run_simulation() {
     if (pe_count == 0 || !interconnect_system) {
@@ -180,6 +188,7 @@ void run_simulation() {
 
 /**
  * @brief Muestra estadísticas almacenadas tras la simulación.
+ * TODO
  */
 void show_statistics() {
     if (pe_count == 0 || !interconnect_system) {
