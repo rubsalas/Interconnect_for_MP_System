@@ -30,7 +30,12 @@
 *.exe
 *.out
 *.app
+*.txt
 
 # Program
 Program/interconnect_sim
 .vscode/settings.json
+Program/config/assemblers/*
+Program/config/binaries/*
+Program/src/caches
+
