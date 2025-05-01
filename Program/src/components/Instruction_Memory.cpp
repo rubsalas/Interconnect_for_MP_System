@@ -1,4 +1,4 @@
-#include "../include/Instruction_Memory.h"
+#include "../include/components/Instruction_Memory.h"
 #include <fstream>
 #include <sstream>
 #include <stdexcept>

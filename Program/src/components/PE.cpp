@@ -1,4 +1,4 @@
-#include "../include/components/PE.h"
+#include "../../include/components/PE.h"
 
 PE::PE(int id, uint8_t qos)
     : id_(id), qos_(qos), pc_(0), actual_instruction_(0) {}

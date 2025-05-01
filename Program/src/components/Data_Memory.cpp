@@ -1,4 +1,4 @@
-#include "../include/Data_Memory.h"
+#include "../include/components/Data_Memory.h"
 #include <random>
 #include <fstream>
 #include <bitset>  // Para convertir a binario como string

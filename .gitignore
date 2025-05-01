@@ -33,9 +33,8 @@
 *.txt
 
 # Program
-Program/interconnect_sim
-.vscode/settings.json
+.vscode
 Program/config/assemblers/*
 Program/config/binaries/*
+Program/interconnect_sim
 Program/src/caches
-

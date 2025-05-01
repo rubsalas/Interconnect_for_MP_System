@@ -4,10 +4,13 @@
 #include <sstream>
 #include <unordered_map>
 
-System::System(int num_pes)
-    : total_pes_(num_pes) {
-    // Reserva espacio para los PEs
+System::System(int num_pes, ArbitScheme scheme)
+    : total_pes_(num_pes), scheme_(scheme) {
     pes_.reserve(total_pes_);
+    std::cout << "[System] Created with " << total_pes_ << " PEs and scheme "
+              << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << "\n";
+    // Instancia el Interconnect inmediatamente
+    interconnect_ = std::make_unique<Interconnect>(total_pes_, scheme_);
 }
 
 void System::initialize() {
@@ -18,7 +21,6 @@ void System::initialize() {
     // TODO: todas estas inicializaciones
     std::cout << "[System] Setting PEs' Instruction Memory...\n";
     std::cout << "[System] Setting up Caches...\n";
-    std::cout << "[System] Setting up Interconnect...\n";
     std::cout << "[System] Setting up Shared Memory...\n";
     std::cout << "[System] Getting simulation times...\n";
     std::cout << "[System] Setting up Statistics Unit...\n";
@@ -61,7 +63,7 @@ void System::initialize_pes() {
 void System::run() {
 
     // **Depuración**: imprime cada PE y su QoS
-    debug_print_pes();
+    debug_print();
 
     const int cycles = 10; // Placeholder value
     for (int cycle = 0; cycle < cycles; ++cycle) {
@@ -80,10 +82,19 @@ void System::report_statistics() const {
     std::cout << "[System] (Placeholder)\n";
 }
 
-void System::debug_print_pes() const {
-    std::cout << "[System] Debug: listing all PEs with QoS values...\n";
+void System::debug_print() const {
+    std::cout << "[System] Debug: General system state...";
+    // Imprimir información de PEs
+    std::cout << "\n[System] PEs and their QoS values:";
     for (const auto& pe : pes_) {
         std::cout << "  PE " << pe.get_id()
-                  << " -> QoS=" << static_cast<int>(pe.get_qos()) << "\n";
+                  << " -> QoS=" << static_cast<int>(pe.get_qos()) << "";
+    }
+    // Llamar al debug del interconnect si existe
+    if (interconnect_) {
+        std::cout << "\n[System] Interconnect state:";
+        interconnect_->debug_print();
+    } else {
+        std::cout << "\n[System] Interconnect not initialized.";
     }
 }

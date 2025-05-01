@@ -1,19 +1,23 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include "components/PE.h"
+#include "components/Interconnect.h"
 
 /**
  * @class System
- * @brief Controlador principal de la simulación MP: gestiona PEs, ciclos y estadísticas.
+ * @brief Controlador principal de la simulación MP: gestiona PEs, Interconnect,
+ *        ciclos y estadísticas.
  */
 class System {
 public:
     /**
-     * @brief Construye un sistema con un número dado de PEs.
+     * @brief Construye un sistema con un número dado de PEs y esquema de arbitraje.
      * @param num_pes Cantidad de processing elements a instanciar.
+     * @param scheme  Esquema de arbitraje para el Interconnect (FIFO o PRIORITY).
      */
-    explicit System(int num_pes);
+    System(int num_pes, ArbitScheme scheme);
 
     /** @brief Inicializa componentes internos (PEs, interconnect, memoria, estadísticas). */
     void initialize();
@@ -27,11 +31,13 @@ public:
     /**
      * @brief Imprime en consola el ID y QoS de cada PE para depuración.
      */
-    void debug_print_pes() const;
+    void debug_print() const;
 
 private:
-    int total_pes_;              /**< Número de PEs configurados. */
-    std::vector<PE> pes_;        /**< Vector de PEs del sistema. */
+    std::vector<PE>                    pes_;            /**< Vector de PEs del sistema. */
+    int                                total_pes_;      /**< Número de PEs configurados. */
+    std::unique_ptr<Interconnect>      interconnect_;   /**< Interconnect para enrutar mensajes. */
+    ArbitScheme                        scheme_;         /**< Esquema de arbitraje seleccionado. */
 
     /**
      * @brief Crea e inicializa los PEs con QoS por defecto.
