@@ -1,4 +1,4 @@
-#include "Program/include/components/Local_Cache.h"
+#include "../Program/include/components/Local_Cache.h"
 #include <iostream>
 #include <vector>
 
@@ -24,10 +24,10 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < num_caches; ++i) {
         caches[i].fill_random();
-        std::string filename = "caches/cache_" + std::to_string(i) + ".txt"; // <<--- Guarda en carpeta
+        //std::string filename = "caches/cache_" + std::to_string(i) + ".txt"; // <<--- Ya no se usa
         try {
-            caches[i].dump_to_text_file(filename);
-            std::cout << "Cache " << i << " exportada a " << filename << "\n";
+            caches[i].dump_to_text_file();
+            std::cout << "Cache " << i << " exportada\n";
         } catch (const std::exception& e) {
             std::cerr << "Error al exportar cache " << i << ": " << e.what() << "\n";
         }

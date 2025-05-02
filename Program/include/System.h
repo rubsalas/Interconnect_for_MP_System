@@ -4,6 +4,7 @@
 #include <memory>
 #include "components/PE.h"
 #include "components/Interconnect.h"
+#include "components/Local_Cache.h"
 
 /**
  * @class System
@@ -34,10 +35,11 @@ public:
     void debug_print() const;
 
 private:
-    int                                total_pes_;      /**< Número de PEs configurados. */
-    std::vector<PE>                    pes_;            /**< Vector de PEs del sistema. */
-    ArbitScheme                        scheme_;         /**< Esquema de arbitraje seleccionado. */
-    std::unique_ptr<Interconnect>      interconnect_;   /**< Interconnect para enrutar mensajes. */
+    int                             total_pes_;     /**< Número de PEs configurados. */
+    std::vector<PE>                 pes_;           /**< Vector de PEs del sistema. */
+    ArbitScheme                     scheme_;        /**< Esquema de arbitraje seleccionado. */
+    std::unique_ptr<Interconnect>   interconnect_;  /**< Interconnect para enrutar mensajes. */
+    std::vector<LocalCache>         caches_;        /**< Caches Locales L1 para cada PE. */    
 
     /**
      * @brief Crea e instancia el Interconnect como unico
@@ -46,9 +48,12 @@ private:
     
     /**
      * @brief Crea e inicializa los PEs con QoS por defecto.
-     *
-     * Más adelante, cargará los valores de QoS desde un archivo de configuración.
      */
     void initialize_pes();
+
+    /**
+     * @brief Inicializa un caché local por cada PE (sin QoS).
+     */
+    void initialize_caches();
 
 };

@@ -9,7 +9,7 @@
 
 #include "../include/Compiler.h"
 #include "../include/System.h"
-#include "../include/Instruction_Generator.h" // <-- AGREGADO
+#include "../include/Instruction_Generator.h"
 
 #include <iostream>
 #include <string>
@@ -30,7 +30,7 @@ void compile_instructions();
 void initialize_system();
 void run_simulation();
 void show_statistics();
-void generate_instruction_files(); // <-- AGREGADO
+void generate_instruction_files();
 
 /**
  * @brief Punto de entrada de la aplicación.
@@ -76,7 +76,7 @@ int main() {
 			case 2:
 				compile_instructions();
 				break;
-			case 3: // <-- MODIFICADO
+			case 3:
 				initialize_system();
 				break;
 			case 4:
@@ -97,8 +97,6 @@ int main() {
 	std::cout << "Program terminated.\n";
 	return 0;
 }
-
-// ---------------- Helper Function Definitions ----------------
 
 /**
  * @brief Implementación del menú de opciones.
@@ -131,7 +129,6 @@ void generate_instruction_files() {
  * @brief Obtiene las instrucciones y las pasa a un binario que entienden
  * los PEs.
  */
-/// @brief Invoca al compilador de directorios con rutas fijas por ahora.
 void compile_instructions() {
 	std::cout << "\n[Init] Compiling assembly...\n";
 	// Paths
@@ -166,8 +163,8 @@ void initialize_system() {
     interconnect_system = new System(pe_count, scheme);
     interconnect_system->initialize();
 
-    std::cout << "[Init] Initialization complete with scheme "
-              << (scheme == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << ".\n";
+    std::cout << "[Init] Initialization complete with "
+              << (scheme == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << " arbitration scheme.\n";
 }
 
 /**

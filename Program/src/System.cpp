@@ -4,6 +4,8 @@
 #include <sstream>
 #include <unordered_map>
 
+/* ---------------------------------------- Constructor ---------------------------------------- */
+
 System::System(int num_pes, ArbitScheme scheme)
     : total_pes_(num_pes), scheme_(scheme) {
     pes_.reserve(total_pes_);
@@ -11,24 +13,29 @@ System::System(int num_pes, ArbitScheme scheme)
               << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << "\n";   
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
+/* -------------------------------------- Initialization --------------------------------------- */
+
 void System::initialize() {
 
-    std::cout << "[System] Initializing Interconnect...\n";
+    std::cout << "\n[System] Initializing Interconnect...\n";
     initialize_interconnect();
     
-    std::cout << "[System] Initializing " << total_pes_ << " PEs...\n";
+    std::cout << "\n[System] Initializing " << total_pes_ << " PEs...\n";
     initialize_pes();
 
-    // TODO: todas estas inicializaciones
-    std::cout << "[System] Setting up Caches...\n";
+    std::cout << "\n[System] Setting up Local Cache for every PE...\n";
+    initialize_caches();
 
-    std::cout << "[System] Setting up Shared Memory...\n";
+    // TODO: estas inicializaciones
+    std::cout << "\n[System] Setting up Shared Memory...\n";
 
-    std::cout << "[System] Getting simulation times...\n";
+    std::cout << "\n[System] Getting simulation times...\n";
 
-    std::cout << "[System] Setting up Statistics Unit...\n";
+    std::cout << "\n[System] Setting up Statistics Unit...\n";
 
-    std::cout << "[System] Initialization complete.\n";
+    std::cout << "\n[System] Initialization complete.\n";
 }
 
 void System::initialize_interconnect() {
@@ -67,6 +74,24 @@ void System::initialize_pes() {
     }
 }
 
+void System::initialize_caches() {
+    std::cout << "[System] Initializing local caches for " 
+              << total_pes_ << " PEs...\n";
+
+    caches_.clear();
+    caches_.reserve(total_pes_);
+    for (int i = 0; i < total_pes_; ++i) {
+        caches_.emplace_back(i);  // construye un LocalCache vacío
+        std::cout << "[System]  Cache " << i << " instantiated.\n";
+    }
+
+    std::cout << "[System] All local caches initialized.\n";
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+/* ----------------------------------------- Execution ----------------------------------------- */
+
 void System::run() {
 
     // **Depuración**: imprime cada PE y su QoS
@@ -82,12 +107,20 @@ void System::run() {
     std::cout << "[System] Results saved in file.\n";
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
+/* ---------------------------------------- Statistics ----------------------------------------- */
+
 void System::report_statistics() const {
     std::cout << "\n[System] Reporting statistics for " << total_pes_
               << " PEs...\n";
     // TODO: Integrar con StatisticsUnit
     std::cout << "[System] (Placeholder)\n";
 }
+
+/* --------------------------------------------------------------------------------------------- */
+
+/* ------------------------------------------- Debug ------------------------------------------- */
 
 void System::debug_print() const {
     std::cout << "[System] Debug: General system state...";
@@ -105,3 +138,5 @@ void System::debug_print() const {
         std::cout << "\n[System] Interconnect not initialized.";
     }
 }
+
+/* --------------------------------------------------------------------------------------------- */
