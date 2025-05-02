@@ -6,8 +6,8 @@ Interconnect::Interconnect(int num_pes, ArbitScheme scheme)
     in_queues_.resize(num_pes_);
     out_queues_.resize(num_pes_);
     std::cout << "[Interconnect] Created with " << num_pes_
-              << " PEs, scheme=" << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY")
-              << "\n";
+              << " PE connections and will use " << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY")
+              << " as its arbitration scheme.\n";
 }
 
 void Interconnect::send_request(const Message& m) {

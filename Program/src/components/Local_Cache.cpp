@@ -52,6 +52,7 @@ void LocalCache::dump_to_text_file() const {
         // No existe, se crea
         fs::create_directories(dir);
     }
+    
     std::ofstream out(dump_path);
     if (!out.is_open()) {
         throw std::runtime_error("Error: No se pudo crear el archivo: " + dump_path);

@@ -4,7 +4,7 @@
 
 /*
  * Compile:
- * g++ -std=c++20 -Wall Program/src/components/Instruction_Memory.cpp instr_mem_main.cpp -o test_instr_mem
+ * g++ -std=c++20 -Wall ../Program/src/components/Instruction_Memory.cpp instr_mem_main.cpp -o test_instr_mem
  * ./test_instr_mem <binary_file>
  */
 

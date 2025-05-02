@@ -5,6 +5,7 @@
 #include "components/PE.h"
 #include "components/Interconnect.h"
 #include "components/Local_Cache.h"
+#include "components/Shared_Memory.h"
 
 /**
  * @class System
@@ -39,7 +40,8 @@ private:
     std::vector<PE>                 pes_;           /**< Vector de PEs del sistema. */
     ArbitScheme                     scheme_;        /**< Esquema de arbitraje seleccionado. */
     std::unique_ptr<Interconnect>   interconnect_;  /**< Interconnect para enrutar mensajes. */
-    std::vector<LocalCache>         caches_;        /**< Caches Locales L1 para cada PE. */    
+    std::vector<LocalCache>         caches_;        /**< Caches Locales L1 para cada PE. */
+    std::unique_ptr<SharedMemory>   shared_memory_; /**< Interconnect para enrutar mensajes. */  
 
     /**
      * @brief Crea e instancia el Interconnect como unico
@@ -56,4 +58,8 @@ private:
      */
     void initialize_caches();
 
+    /** 
+     * @brief Inicializa la memoria compartida del sistema. 
+     */
+    void initialize_shared_memory();
 };

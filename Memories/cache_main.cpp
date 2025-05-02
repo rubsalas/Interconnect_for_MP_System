@@ -4,7 +4,7 @@
 
 /*
  * Compile:
- * g++ -std=c++20 -Wall Program/src/components/Local_Cache.cpp cache_main.cpp -o test_caches
+ * g++ -std=c++20 -Wall ../Program/src/components/Local_Cache.cpp cache_main.cpp -o test_caches
  * ./test_caches <cant. PEs> 
  */
 

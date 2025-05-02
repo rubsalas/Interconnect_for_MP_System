@@ -28,9 +28,10 @@ void System::initialize() {
     std::cout << "\n[System] Setting up Local Cache for every PE...\n";
     initialize_caches();
 
-    // TODO: estas inicializaciones
     std::cout << "\n[System] Setting up Shared Memory...\n";
+    initialize_shared_memory();
 
+    // TODO: estas inicializaciones
     std::cout << "\n[System] Getting simulation times...\n";
 
     std::cout << "\n[System] Setting up Statistics Unit...\n";
@@ -86,6 +87,10 @@ void System::initialize_caches() {
     }
 
     std::cout << "[System] All local caches initialized.\n";
+}
+
+void System::initialize_shared_memory() {
+    shared_memory_ = std::make_unique<SharedMemory>();
 }
 
 /* --------------------------------------------------------------------------------------------- */
