@@ -1,7 +1,12 @@
 #include "../../include/components/PE.h"
+#include <iostream>
 
 PE::PE(int id, uint8_t qos)
-    : id_(id), qos_(qos), pc_(0), actual_instruction_(0) {}
+    : id_(id), qos_(qos), pc_(0), actual_instruction_(0), instruction_memory_(id) {
+    std::cout << "\n[PE] Created PE " << id_ << " with QoS=" << static_cast<int>(qos_) << "\n";
+    // Inicializa el instruction memory de una vez
+    instruction_memory_.initialize();
+}
 
 int PE::get_id() const {
     return id_;

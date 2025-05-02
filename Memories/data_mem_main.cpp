@@ -1,5 +1,11 @@
-#include "../include/Data_Memory.h"
+#include "Program/include/components/Data_Memory.h"
 #include <iostream>
+
+/*
+ * Compile:
+ * g++ -std=c++20 -Wall Program/src/components/Data_Memory.cpp data_mem_main.cpp -o test_data_mem
+ * ./test_data_mem <cant. PEs>
+ */
 
 int main() {
     DataMemory mem;

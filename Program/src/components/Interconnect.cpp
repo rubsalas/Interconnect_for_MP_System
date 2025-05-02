@@ -41,7 +41,7 @@ void Interconnect::report_stats() const {
 }
 
 void Interconnect::debug_print() const {
-    std::cout << "[Interconnect] Debug: num_pes=" << num_pes_
+    std::cout << "\n[Interconnect] Debug: num_pes=" << num_pes_
               << ", scheme=" << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY")
               << "\n";
     // TODO: listar queues o estadísticas básicas aquí.

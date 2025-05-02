@@ -1,6 +1,12 @@
-#include "../include/Local_Cache.h"
+#include "Program/include/components/Local_Cache.h"
 #include <iostream>
 #include <vector>
+
+/*
+ * Compile:
+ * g++ -std=c++20 -Wall Program/src/components/Local_Cache.cpp cache_main.cpp -o test_caches
+ * ./test_caches <cant. PEs> 
+ */
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {

@@ -1,12 +1,56 @@
-#include "../include/components/Instruction_Memory.h"
+#include "../../include/components/Instruction_Memory.h"
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
-#include <iomanip>  // Para std::setw si quisieras hex
-#include <bitset>   // Para escribir binarios
+#include <iomanip>
+#include <bitset>
+#include <filesystem>
 
-void InstructionMemory::load(const std::vector<uint64_t>& instrs) {
-    instructions = instrs;
+InstructionMemory::InstructionMemory(int pe_id)
+    : pe_id_(pe_id) {
+        std::cout << "\n[IM] Created Instruction Memory for PE " << pe_id << "\n";
+        // Guarda el directorio y el filename de donde obtener las instrucciones
+        binary_path = "config/binaries/pe_" + std::to_string(pe_id_) + ".bin";
+}
+
+void InstructionMemory::initialize() {
+    std::cout << "[IMem PE" << pe_id_ << "] Loading instructions from '"
+              << binary_path << "'...\n";
+
+    // 1) Cargar desde archivo
+    try {
+        load_from_file(binary_path);
+    } catch (const std::exception& e) {
+        std::cerr << "[IMem PE" << pe_id_ << "] Error cargando archivo: "
+                  << e.what() << "\n";
+        return;
+    }
+
+    // 2) Mostrar por consola
+    std::cout << "[IMem PE" << pe_id_ << "] Instrucciones cargadas (" 
+              << size() << "):\n";
+    for (size_t i = 0; i < size(); ++i) {
+        uint64_t instr = fetch_instruction(i);
+        std::cout << "  [" << i << "] 0x" 
+                  << std::hex << instr 
+                  << " (bin: " << std::bitset<64>(instr) << ")\n";
+    }
+    std::cout << std::dec; // restablecer flujo a decimal
+
+    // 3) Volcar a fichero
+    const std::string dir = "config/instruction_memories";
+    std::filesystem::create_directory(dir);
+
+    std::string dump_name = dir + "/dump_memoria_pe_" + std::to_string(pe_id_) + ".txt";
+    try {
+        dump_to_file(dump_name);
+        std::cout << "[IMem PE" << pe_id_ << "] Contenido exportado a " 
+                  << dump_name << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[IMem PE" << pe_id_ << "] Error volcando memoria: "
+                  << e.what() << "\n";
+    }
 }
 
 void InstructionMemory::load_from_file(const std::string& filename) {

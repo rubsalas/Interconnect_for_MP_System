@@ -114,6 +114,20 @@ void show_menu() {
 }
 
 /**
+ * @brief Genera archivos de instrucciones para los PEs.
+ */
+void generate_instruction_files() {
+	if (pe_count == 0 ) {
+		std::cout << "\n[Sim] Program initialized with no PEs. Please initialize correctly.\n";
+		return;
+	}
+
+	InstructionGenerator generator(pe_count);
+	generator.generate();
+	std::cout << "[Init] Instruction files generated for " << pe_count << " PEs.\n";
+}
+
+/**
  * @brief Obtiene las instrucciones y las pasa a un binario que entienden
  * los PEs.
  */
@@ -145,7 +159,7 @@ void initialize_system() {
         std::cout << "[Error] Enter 1 for FIFO or 2 for PRIORITY: ";
     }
 
-    // 3) Instanciación y configuración del System
+    // 2) Instanciación y configuración del System
     ArbitScheme scheme = (scheme_choice == 1)
         ? ArbitScheme::FIFO
         : ArbitScheme::PRIORITY;
@@ -182,18 +196,4 @@ void show_statistics() {
 	}
 
 	interconnect_system->report_statistics();
-}
-
-/**
- * @brief Genera archivos de instrucciones para los PEs.
- */
-void generate_instruction_files() {
-	if (pe_count == 0 ) {
-		std::cout << "\n[Sim] Program initialized with no PEs. Please initialize correctly.\n";
-		return;
-	}
-
-	InstructionGenerator generator(pe_count);
-	generator.generate();
-	std::cout << "[Init] Instruction files generated for " << pe_count << " PEs.\n";
 }

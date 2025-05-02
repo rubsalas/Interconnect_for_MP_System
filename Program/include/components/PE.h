@@ -1,10 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include "Instruction_Memory.h"
 
 /**
  * @class PE
- * @brief Processing Element minimal con QoS, contador de programa e instrucción.
+ * @brief Processing Element con QoS, contador de programa, instrucción actual
+ *        y memoria de instrucciones.
  */
 class PE {
 public:
@@ -30,9 +33,16 @@ public:
     /** @brief Establece la instrucción de 64 bits actual. */
     void set_actual_instruction(uint64_t instr);
 
+    /**
+     * @brief Carga las instrucciones desde un archivo en la InstructionMemory.
+     * @param filename Ruta al archivo de instrucciones.
+     */
+    void load_instructions(const std::string& filename);
+
 private:
-    int     id_;           /**< ID del PE. */
-    uint8_t qos_;          /**< Calidad de servicio. */
-    uint64_t pc_;          /**< Program Counter. */
-    uint64_t actual_instruction_; /**< Instrucción de 64 bits. */
+    int                 id_;                   /**< ID del PE. */
+    uint8_t             qos_;                  /**< Calidad de servicio. */
+    uint64_t            pc_;                   /**< Program Counter. */
+    InstructionMemory   instruction_memory_;   /**< Memoria de instrucciones. */
+    uint64_t            actual_instruction_;   /**< Instrucción de 64 bits. */
 };

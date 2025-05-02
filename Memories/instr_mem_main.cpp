@@ -1,6 +1,12 @@
-#include "../include/Instruction_Memory.h"
+#include "../Program/include/components/Instruction_Memory.h"
 #include <iostream>
 #include <bitset>
+
+/*
+ * Compile:
+ * g++ -std=c++20 -Wall Program/src/components/Instruction_Memory.cpp instr_mem_main.cpp -o test_instr_mem
+ * ./test_instr_mem <binary_file>
+ */
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -9,7 +15,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string filename = argv[1];
-    InstructionMemory mem;
+    InstructionMemory mem(0);
 
     try {
         mem.load_from_file(filename);

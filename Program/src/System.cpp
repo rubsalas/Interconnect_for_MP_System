@@ -8,24 +8,31 @@ System::System(int num_pes, ArbitScheme scheme)
     : total_pes_(num_pes), scheme_(scheme) {
     pes_.reserve(total_pes_);
     std::cout << "[System] Created with " << total_pes_ << " PEs and scheme "
-              << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << "\n";
-    // Instancia el Interconnect inmediatamente
-    interconnect_ = std::make_unique<Interconnect>(total_pes_, scheme_);
+              << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << "\n";   
 }
 
 void System::initialize() {
+
+    std::cout << "[System] Initializing Interconnect...\n";
+    initialize_interconnect();
     
     std::cout << "[System] Initializing " << total_pes_ << " PEs...\n";
-    initialize_pes(); // Funcion aparte que leerá el archivo
+    initialize_pes();
 
     // TODO: todas estas inicializaciones
-    std::cout << "[System] Setting PEs' Instruction Memory...\n";
     std::cout << "[System] Setting up Caches...\n";
+
     std::cout << "[System] Setting up Shared Memory...\n";
+
     std::cout << "[System] Getting simulation times...\n";
+
     std::cout << "[System] Setting up Statistics Unit...\n";
 
     std::cout << "[System] Initialization complete.\n";
+}
+
+void System::initialize_interconnect() {
+    interconnect_ = std::make_unique<Interconnect>(total_pes_, scheme_);
 }
 
 void System::initialize_pes() {

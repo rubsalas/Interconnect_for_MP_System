@@ -34,15 +34,21 @@ public:
     void debug_print() const;
 
 private:
-    std::vector<PE>                    pes_;            /**< Vector de PEs del sistema. */
     int                                total_pes_;      /**< Número de PEs configurados. */
-    std::unique_ptr<Interconnect>      interconnect_;   /**< Interconnect para enrutar mensajes. */
+    std::vector<PE>                    pes_;            /**< Vector de PEs del sistema. */
     ArbitScheme                        scheme_;         /**< Esquema de arbitraje seleccionado. */
+    std::unique_ptr<Interconnect>      interconnect_;   /**< Interconnect para enrutar mensajes. */
 
+    /**
+     * @brief Crea e instancia el Interconnect como unico
+     */
+    void initialize_interconnect();
+    
     /**
      * @brief Crea e inicializa los PEs con QoS por defecto.
      *
      * Más adelante, cargará los valores de QoS desde un archivo de configuración.
      */
     void initialize_pes();
+
 };
