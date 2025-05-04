@@ -31,6 +31,9 @@ void initialize_system();
 void run_simulation();
 void show_statistics();
 void generate_instruction_files();
+// Test declarations
+void test_G();
+void test_R();
 
 /**
  * @brief Punto de entrada de la aplicación.
@@ -85,6 +88,12 @@ int main() {
 			case 5:
 				show_statistics();
 				break;
+			case 8:
+				test_G();
+				break;
+			case 9:
+				test_R();
+				break;
 			case 0:
 				std::cout << "\nExiting program...\n";
 				running = false;
@@ -108,6 +117,8 @@ void show_menu() {
 			<< "3. Initialize System\n"	// <-- MODIFICADO
 			<< "4. Run Simulation\n"
 			<< "5. Show Statistics\n"
+			<< "8. Test G\n"
+			<< "9. Test R\n"
 			<< "0. Exit\n";
 }
 
@@ -194,3 +205,17 @@ void show_statistics() {
 
 	interconnect_system->report_statistics();
 }
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+void test_G() {
+	std::cout << "\n[TEST] Starting Test G...\n";
+	interconnect_system->system_test_G();
+}
+
+void test_R() {
+	std::cout << "\n[TEST] Starting Test G...\n";
+	interconnect_system->system_test_R();
+}
+
+/* --------------------------------------------------------------------------------------------- */

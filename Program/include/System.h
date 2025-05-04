@@ -35,6 +35,9 @@ public:
      */
     void debug_print() const;
 
+    void system_test_G();
+    void system_test_R();
+
 private:
     int                             total_pes_;     /**< Número de PEs configurados. */
     std::vector<PE>                 pes_;           /**< Vector de PEs del sistema. */
