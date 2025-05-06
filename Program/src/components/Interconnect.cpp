@@ -3,11 +3,27 @@
 
 Interconnect::Interconnect(int num_pes, ArbitScheme scheme)
     : num_pes_(num_pes), scheme_(scheme) {
-    in_queues_.resize(num_pes_);
-    out_queues_.resize(num_pes_);
     std::cout << "[Interconnect] Created with " << num_pes_
               << " PE connections and will use " << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY")
               << " as its arbitration scheme.\n";
+}
+
+void Interconnect::push_message(const Message& m) {
+    // 1) Bloqueamos el mutex para asegurar que
+    //    solo un hilo a la vez modifica in_queue_.
+    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+
+    // 2) Encolamos el mensaje en in_queue_
+    in_queue_.push(m);
+
+    // 3) Debug: informamos en consola
+    std::cout << "[Interconnect] Safely queued message: "
+              << m.to_string() << "\n";
+
+    // TODO: Acomodar el queue dependiendo del QoS si el scheme esta en PRIORITY
+
+    // Al llegar al fin de la funcion, el destructor de lock_guard
+    // libera automaticamente el mutex, incluso si ocurre una excepción.
 }
 
 void Interconnect::tick() {
@@ -16,27 +32,29 @@ void Interconnect::tick() {
     // TODO: apply arbitration and move messages between queues
 }
 
-bool Interconnect::has_response(int pe_id) const {
-    std::cout << "[Interconnect] has_response check for PE " << pe_id << "\n";
-    // TODO: return !out_queues_[pe_id].empty();
-    return false;
-}
-
-Message Interconnect::get_response(int pe_id) {
-    std::cout << "[Interconnect] get_response for PE " << pe_id << "\n";
-    // TODO: pop from out_queues_[pe_id]
-    return Message(Operation::UNDEFINED);
-}
-
-
-void Interconnect::report_stats() const {
-    std::cout << "[Interconnect] report_stats: (placeholder)\n";
-    // TODO: print statistics collected
-}
-
 void Interconnect::debug_print() const {
     std::cout << "\n[Interconnect] Debug: num_pes=" << num_pes_
               << ", scheme=" << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY")
               << "\n";
     // TODO: listar queues o estadísticas básicas aquí.
+}
+
+void Interconnect::debug_print_request_queue() {
+    // Aseguramos acceso exclusivo
+    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+
+    std::cout << "[Interconnect] Pending requests in in_queue_:\n";
+    // Hacemos una copia para no alterar la cola real
+    std::queue<Message> copy = in_queue_;
+    if (copy.empty()) {
+        std::cout << "  (none)\n";
+        return;
+    }
+
+    size_t idx = 0;
+    while (!copy.empty()) {
+        const Message& m = copy.front();
+        std::cout << "  [" << idx++ << "] " << m.to_string() << "\n";
+        copy.pop();
+    }
 }

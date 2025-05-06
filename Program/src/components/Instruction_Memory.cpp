@@ -15,20 +15,20 @@ InstructionMemory::InstructionMemory(int pe_id)
 }
 
 void InstructionMemory::initialize() {
-    std::cout << "[IMem PE" << pe_id_ << "] Loading instructions from '"
+    std::cout << "\n[IM PE" << pe_id_ << "] Loading instructions from '"
               << binary_path << "'...\n";
 
     // 1) Cargar desde archivo
     try {
         load_from_file(binary_path);
     } catch (const std::exception& e) {
-        std::cerr << "[IMem PE" << pe_id_ << "] Error cargando archivo: "
+        std::cerr << "[IM PE" << pe_id_ << "] Error cargando archivo: "
                   << e.what() << "\n";
         return;
     }
 
     // 2) Mostrar por consola
-    std::cout << "[IMem PE" << pe_id_ << "] Instrucciones cargadas (" 
+    std::cout << "[IM PE" << pe_id_ << "] Instrucciones cargadas (" 
               << size() << "):\n";
     for (size_t i = 0; i < size(); ++i) {
         uint64_t instr = fetch_instruction(i);
@@ -45,10 +45,10 @@ void InstructionMemory::initialize() {
     std::string dump_name = dir + "/dump_memoria_pe_" + std::to_string(pe_id_) + ".txt";
     try {
         dump_to_file(dump_name);
-        std::cout << "[IMem PE" << pe_id_ << "] Contenido exportado a " 
+        std::cout << "[IM PE" << pe_id_ << "] Contenido exportado a " 
                   << dump_name << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "[IMem PE" << pe_id_ << "] Error volcando memoria: "
+        std::cerr << "[IM PE" << pe_id_ << "] Error volcando memoria: "
                   << e.what() << "\n";
     }
 }
@@ -125,3 +125,30 @@ void InstructionMemory::dump_to_file(const std::string& output_filename) const {
 
     out.close();
 }
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+void InstructionMemory::print_instructions() const {
+    // 1) Cabecera con la cantidad de instrucciones
+    std::cout << "[InstructionMemory] Printing "
+              << instructions.size()
+              << " instructions:\n";
+
+    // 2) Recorremos cada instrucción por índice
+    for (size_t idx = 0; idx < instructions.size(); ++idx) {
+        uint64_t instr = instructions[idx];
+
+        // 3) Imprimimos:
+        //    - Índice en corchetes
+        //    - Valor en hexadecimal (std::hex / std::dec)
+        //    - Binario de 64 bits (std::bitset<64>)
+        std::cout << "  [" << idx << "] "
+                  << "0x" << std::hex << instr << std::dec
+                  << " (bin: " << std::bitset<64>(instr) << ")\n";
+    }
+
+    // 4) Línea en blanco al final para separar visualmente
+    std::cout << std::endl;
+}
+
+/* --------------------------------------------------------------------------------------------- */

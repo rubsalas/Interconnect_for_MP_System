@@ -74,7 +74,21 @@ public:
      * @brief Funcion para obtener la instruccion en la posicion deseada del vector de instrucciones
      * 
      */
-    std::string  get_instruction(int index) const;
+    std::string  get_instruction(long unsigned int index) const;
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+    /**
+     * @brief Imprime todas las instrucciones cargadas en consola.
+     *
+     * Para cada instrucción, muestra:
+     *   - Índice de instrucción en el vector.
+     *   - Valor en formato hexadecimal.
+     *   - Valor en formato binario de 64 bits.
+     */
+    void print_instructions() const;
+
+/* --------------------------------------------------------------------------------------------- */
 
 private:
     int pe_id_;                          /**< ID del PE asociado a esta memoria. */

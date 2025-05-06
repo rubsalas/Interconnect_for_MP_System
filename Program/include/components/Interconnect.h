@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <queue>
+#include <mutex>
 #include "Message.h"
 
 /**
@@ -29,10 +30,10 @@ public:
     Interconnect(int num_pes, ArbitScheme scheme);
 
     /**
-     * @brief Recibe una petición (mensaje) de un PE y la encola.
-     * @param m Mensaje enviado por un PE.
+     * @brief Encola una petición entrante de forma thread-safe.
+     * @param m Mensaje que representa la petición.
      */
-    void send_request(const Message& m);
+    void push_message(const Message& m);
 
     /**
      * @brief Avanza un "tick" de simulación: procesa colas según el arbitraje.
@@ -40,32 +41,24 @@ public:
     void tick();
 
     /**
-     * @brief Consulta si hay respuestas disponibles para un PE dado.
-     * @param pe_id Identificador del PE.
-     * @return true si hay al menos un mensaje de respuesta.
-     */
-    bool has_response(int pe_id) const;
-
-    /**
-     * @brief Obtiene la siguiente respuesta para un PE.
-     * @param pe_id Identificador del PE.
-     * @return Mensaje de respuesta.
-     */
-    Message get_response(int pe_id);
-
-    /**
-     * @brief Muestra las estadísticas del Interconnect.
-     */
-    void report_stats() const;
-
-    /**
      * @brief Imprime en consola configuración y esquema actuales.
      */
     void debug_print() const;
 
+    /**
+     * @brief Imprime en consola todas las peticiones pendientes en la cola interna.
+     *
+     * Hace una copia temporal de la cola para no vaciarla, y muestra cada
+     * Message::to_string(). Usa un mutex para acceso thread-safe.
+     */
+    void debug_print_request_queue();
+
+
+
 private:
     int num_pes_;                                  /**< Número de PEs conectados */
     ArbitScheme scheme_;                           /**< Esquema de arbitraje */
-    std::vector<std::queue<Message>> in_queues_;   /**< Colas de peticiones por PE */
-    std::vector<std::queue<Message>> out_queues_;  /**< Colas de respuestas por PE */
+    std::queue<Message> in_queue_;      /**< Cola de Messages entrantes */
+    std::mutex          in_queue_mtx_;  /**< Protege in_queue_ contra accesos concurrentes. */
+    std::queue<Message> out_queue_;     /**< Cola de Messages salientes */
 };

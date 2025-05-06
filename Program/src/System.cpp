@@ -3,16 +3,15 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
-#include "../include/Message.h"
+#include <thread>
 #include <bitset>
-
 
 /* ---------------------------------------- Constructor ---------------------------------------- */
 
 System::System(int num_pes, ArbitScheme scheme)
     : total_pes_(num_pes), scheme_(scheme) {
     pes_.reserve(total_pes_);
-    std::cout << "[System] Created with " << total_pes_ << " PEs and scheme "
+    std::cout << "\n[System] Created with " << total_pes_ << " PEs and scheme "
               << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << "\n";   
 }
 
@@ -35,9 +34,9 @@ void System::initialize() {
     initialize_shared_memory();
 
     // TODO: estas inicializaciones
-    std::cout << "\n[System] Getting simulation times...\n";
+    std::cout << "\n[System] Getting simulation times... (TODO)\n";
 
-    std::cout << "\n[System] Setting up Statistics Unit...\n";
+    std::cout << "\n[System] Setting up Statistics Unit... (TODO)\n";
 
     std::cout << "\n[System] Initialization complete.\n";
 }
@@ -52,7 +51,8 @@ void System::initialize_pes() {
     std::unordered_map<int, uint8_t> qos_map;
     std::ifstream infile("config/qos.txt");
     if (!infile) {
-        std::cerr << "[System] Warning: could not open config/qos.txt, using default QoS=0 for all PEs\n";
+        std::cerr << "[System] Warning: could not open config/qos.txt, "
+                  << "using default QoS=0 for all PEs\n";
     } else {
         std::string line;
         while (std::getline(infile, line)) {
@@ -86,7 +86,7 @@ void System::initialize_caches() {
     caches_.reserve(total_pes_);
     for (int i = 0; i < total_pes_; ++i) {
         caches_.emplace_back(i);  // construye un LocalCache vacío
-        std::cout << "[System]  Cache " << i << " instantiated.\n";
+        std::cout << "[System] Cache " << i << " instantiated.\n";
     }
 
     std::cout << "[System] All local caches initialized.\n";
@@ -102,18 +102,150 @@ void System::initialize_shared_memory() {
 
 void System::run() {
 
-    // **Depuración**: imprime cada PE y su QoS
-    debug_print();
-
-    const int cycles = 10; // Placeholder value
-    for (int cycle = 0; cycle < cycles; ++cycle) {
-        std::cout << "[Sim] Cycle " << (cycle + 1) << " executed.\n";
+    // Lanza un hilo por cada PE
+    for (int i = 0; i < total_pes_; ++i) {
+        start_pe_thread(i);
     }
 
-    std::cout << "[System] Simulation finished.\n";
-    std::cout << "[System] Saving results...\n";
-    std::cout << "[System] Results saved in file.\n";
+    // Lanzar thread de Interconnect aqui
+
+    // Espera a que todos los hilos de PE terminen
+    join_pe_threads();
 }
+
+
+
+void System::start_pe_thread(int pe_id) {
+    // Validación básica del índice
+    if (pe_id < 0 || pe_id >= total_pes_) {
+        std::cerr << "[System] Error: PE id out of range: " << pe_id << "\n";
+        return;
+    }
+
+    // Construye un std::thread que ejecuta el método de instancia pe_execution_cycle(pe_id)
+    // std::thread toma como primer argumento un puntero a miembro, seguido de 'this'
+    // y finalmente el argumento pe_id.
+    pe_threads_.emplace_back(&System::pe_execution_cycle, this, pe_id);
+
+    std::cout << "[System] Launching thread for PE " << pe_id << "...\n";
+}
+
+
+void System::pe_execution_cycle(int pe_id) {
+    // 0.1) Referencia al PE correspondiente
+    PE& pe = pes_.at(pe_id);
+
+    // 0.2) Referencia al Cache correspondiente al PE
+    LocalCache& cache = caches_.at(pe_id);
+
+    // 0.2) Mensaje de arranque del hilo para este PE
+    std::cout << "[PE Worker] Thread started for PE " << pe.get_id()
+          << ", QoS=0x" << std::hex << int(pe.get_qos())
+          << std::dec << ", state=" << pe.state_to_string()
+          << "\n";
+
+    // 0.3) Mostrar instrucciones por correr
+    std::cout << "[PE Worker] Showing instructions that will be executed by PE "
+              << pe.get_id() << "\n" ;
+    pe.instruction_memory_.print_instructions();
+
+    /* Ciclo de ejecucion correra hasta que el estado del PE llegue a FINISHED */
+    while (pe.get_state() != PEState::FINISHED) {
+
+        // PE manda al IM a convertir la instruccion a Mensaje
+
+        /* Primero, modificar en IM la funcion load_from_file() para dejar correctamente el vector de instrucciones */
+        /* IM debe tener una funcion get_instruction(num_instruccion) que retorne el string de esta */
+        /* Se le pasara el pc con el numero de instruccion actual */
+        //std::string instruction = pe.instruction_memory_.get_instruction(pc);
+
+        /* PE tendrá esta funcion que es la que retornará la instruccion como Message */
+        //Message actual_pe_message = pe.convert_to_message(instruction);
+
+        // MESSAGE TESTING
+        // 3) Creamos un mensaje de prueba (READ_MEM) con datos falsos
+        Message actual_pe_message(
+            Operation::READ_MEM,          // Tipo de operación
+            pe.get_id() + 10,                  // src = este PE
+            -1,                           // dst = Interconnect (no se usa aquí)
+            0x100 * pe.get_id(),          // address varía según el PE
+            pe.get_qos(),                 // QoS del PE
+            4 * pe.get_id(),              // size = ejemplo variable
+            pe.get_id() + pe.get_id(),    // num_of_cache_lines (dummy)
+            pe.get_id() + 16,             // start_cache_line (dummy)
+            pe.get_id() + 1080,           // cache_line (dummy)
+            0,                            // status (no aplica para READ_MEM)
+            {}                            // data vacío
+        );
+
+        /* PE dejará el Message recien creado como el actual a ejecutar y/o enviar a Interconnect */
+        // 4) Almacenamos el mensaje en el PE (para debug o uso interno)
+        pe.set_actual_message(actual_pe_message);
+
+        // Imprime ID del PE y el contenido formateado del mensaje
+        std::cout << "  PE " << pe.get_id() << ": "
+                  << actual_pe_message.to_string() << "\n";
+
+        /* Se revisará si ya llegó a la ultima instruccion, si no continua el ciclo*/
+        // 4) Si la operación es END, terminamos el bucle de ejecución de este PE
+        if (pe.get_actual_message().get_operation() == Operation::END) {
+            std::cout << "[PE " << pe_id << "] END instruction encountered, stopping execution...\n";
+            break;
+        }
+
+        /*
+         * Aqui deberia revisarse que instruccion es por si hay que hacer algo en el cache
+         */
+        if (pe.get_actual_message().get_operation() == Operation::WRITE_MEM) {
+            // 1) Avisamos por consola que vamos a volcar el estado de cache
+            std::cout << "[PE " << pe.get_id() << "] WRITE_MEM detected – dumping cache state:\n";
+
+            // 2) Invocamos al método de LocalCache que vuelca su contenido
+            //    a un archivo de texto para inspección.
+            //    Si prefieres verlo por consola, podrías implementar
+            //    un método cache.debug_print().
+            cache.dump_to_text_file();
+
+            // 3) (Opcional) Aviso de que terminó el volcado
+            std::cout << "[PE " << pe.get_id() << "] Cache dump complete: config/caches/cache_"
+                    << pe.get_id() << ".txt\n";
+        }
+
+        // 5) Enviamos la petición al Interconnect
+        std::cout << "[PE Worker] Sending message to Interconnect from PE " 
+                << pe.get_id() << "...\n";
+        interconnect_->push_message(pe.get_actual_message());
+
+        // 6) Cambiar el estado del PE a STALLED ya que estara esperando la respuesta del Message
+        pe.set_state(PEState::STALLED);
+
+        // Revisar si hay alguna respuesta por venir
+
+        // FINISH TEST
+        // Pasa el PE a FINISHED para terminar el ciclo
+        pe.set_state(PEState::FINISHED);
+    }
+
+    // TESTING
+    std::cout << "\n[System Test] Dumping Interconnect request queue:\n";
+    interconnect_->debug_print_request_queue();
+
+    // Fin del thread
+    std::cout << "\n[PE Worker] Thread ending for PE " << pe.get_id() << "\n";
+}
+
+
+void System::join_pe_threads() {
+    // Espera a cada hilo para evitar terminación prematura
+    for (auto& t : pe_threads_) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+    std::cout << "[System] All PE threads have joined.\n";
+}
+
+
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -253,7 +385,57 @@ void System::system_test_G(const std::string& file_path) {
 
 void System::system_test_R() {
 	std::cout << "\n[TEST] Starting System Test R...\n";
-	// TODO
+
+
+    // Cabecera de la prueba
+    std::cout << "\n[System Test] Printing each PE's current message before starting threads:\n";
+
+    // Recorre el vector de PEs
+    for (int i = 0; i < total_pes_; ++i) {
+        const PE& pe = pes_[i];                          // Referencia al PE i
+        const Message& msg = pe.get_actual_message();    // Su mensaje de prueba
+
+        // Imprime ID del PE y el contenido formateado del mensaje
+        std::cout << "  PE " << pe.get_id() << ": "
+                  << msg.to_string() << "\n";
+    }
+
+    
+    std::cout << "\n[TEST] Thread test.\n";
+    
+    // Lanza un hilo por cada PE
+    for (int i = 0; i < total_pes_; ++i) {
+        start_pe_thread(i);
+    }
+
+    // Lanzar thread de Interconnect aqui
+
+    // Espera a que todos los hilos de PE terminen
+    join_pe_threads();
+
+
+
+    std::cout << "\n[System Test] Printing each PE's current message after starting threads:\n";
+
+    // Recorre el vector de PEs
+    for (int i = 0; i < total_pes_; ++i) {
+        const PE& pe = pes_[i];                          // Referencia al PE i
+        const Message& msg = pe.get_actual_message();    // Su mensaje de prueba
+
+        // Imprime ID del PE y el contenido formateado del mensaje
+        std::cout << "  PE " << pe.get_id() << ": "
+                  << msg.to_string() << "\n";
+    }
+
+
+    std::cout << "\n[System Test] Dumping Interconnect request queue:\n";
+    interconnect_->debug_print_request_queue();
+
+
+
+
+    // 4) Fin del programa
+    std::cout << "\n[TEST] System Test Complete.\n";
 }
 
 /* --------------------------------------------------------------------------------------------- */

@@ -25,6 +25,7 @@ static Compiler* compiler = nullptr;
 static System* interconnect_system = nullptr;
 
 // Forward declarations
+void define_PEs();
 void show_menu();
 void compile_instructions();
 void initialize_system();
@@ -46,19 +47,7 @@ int main() {
 
 	std::cout << "=== Interconnect for MP Systems Simulator ===\n";
 
-	int requested_pes = 0;
-
-    // Selección de número de PEs
-    std::cout << "\n[Init] Enter number of Processing Elements (8-" << MAX_PES << "): ";
-    while (!(std::cin >> requested_pes) ||
-           requested_pes < 1 || requested_pes > MAX_PES) {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "[Error] Please enter an integer between 8 and "
-                  << MAX_PES << ": ";
-    }
-    pe_count = requested_pes;
-    std::cout << "[Init] System configured with " << pe_count << " PEs.\n";
+	define_PEs();
 
 	while (running) {
 		show_menu();
@@ -94,6 +83,9 @@ int main() {
 			case 9:
 				test_R();
 				break;
+			case -1:
+				define_PEs();
+				break;
 			case 0:
 				std::cout << "\nExiting program...\n";
 				running = false;
@@ -105,6 +97,25 @@ int main() {
 
 	std::cout << "Program terminated.\n";
 	return 0;
+}
+
+/**
+ * @brief Configura la cantidad de PEs que se usaran en la simulacion.
+ */
+void define_PEs() {
+	int requested_pes = 0;
+
+    // Selección de número de PEs
+    std::cout << "\n[Init] Enter number of Processing Elements (8-" << MAX_PES << "): ";
+    while (!(std::cin >> requested_pes) ||
+           requested_pes < 1 || requested_pes > MAX_PES) {
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        std::cout << "[Error] Please enter an integer between 8 and "
+                  << MAX_PES << ": ";
+    }
+    pe_count = requested_pes;
+    std::cout << "[Init] System configured with " << pe_count << " PEs.\n";
 }
 
 /**
@@ -222,7 +233,7 @@ void test_G() {
 }
 
 void test_R() {
-	std::cout << "\n[TEST] Starting Test G...\n";
+	std::cout << "\n[TEST] Starting Test R...\n";
 	interconnect_system->system_test_R();
 }
 
