@@ -104,7 +104,7 @@ uint64_t InstructionMemory::parse_instruction(const std::string& text) {
     return value;
 }
 
-std::string InstructionMemory::get_instruction(int index) const {
+std::string InstructionMemory::get_instruction(long unsigned int index) const {
     if (index < 0 || index >= instructions.size()) {
         throw std::out_of_range("Índice fuera de rango en get_instruction");
     }
