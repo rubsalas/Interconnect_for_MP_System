@@ -9,14 +9,16 @@
  * @brief Operaciones soportadas por el Interconnect según la especificación.
  */
 enum class Operation {
-    READ_MEM,             /**< Solicitud de lectura de memoria principal */
-    WRITE_MEM,            /**< Solicitud de escritura en memoria principal */
-    BROADCAST_INVALIDATE, /**< Invalidación de línea de caché en todos los PEs */
-    INV_ACK,              /**< Acknowledgment de invalidación de un PE */
-    INV_COMPLETE,         /**< Confirmación de finalización de todas las invalidaciones */
-    READ_RESP,            /**< Respuesta con datos de lectura */
-    WRITE_RESP,           /**< Respuesta con estado de escritura */
-    UNDEFINED             /**< Operación no definida */
+    READ_MEM,               /**< Solicitud de lectura de memoria principal */
+    WRITE_MEM,              /**< Solicitud de escritura en memoria principal */
+    BROADCAST_INVALIDATE,   /**< Invalidación de línea de caché en todos los PEs */
+    INV_LINE,               /**< Interconnect comanda a PEs a invalidar linea */
+    INV_ACK,                /**< Acknowledgment de invalidación de un PE */
+    INV_COMPLETE,           /**< Confirmación de finalización de todas las invalidaciones */
+    READ_RESP,              /**< Respuesta con datos de lectura */
+    WRITE_RESP,             /**< Respuesta con estado de escritura */
+    END,                    /**< Fin de ejecucion de instrucciones por PE */
+    UNDEFINED               /**< Operación no definida */
 };
 
 /**
@@ -54,28 +56,31 @@ public:
             uint32_t status = 0,        // STATUS
             std::vector<uint32_t> data = {});
 
-    /** @brief Devuelve la operación del mensaje. */
-    Operation operation() const;
-    /** @brief Devuelve el identificador del PE origen. */
-    int src_id() const;
-    /** @brief Devuelve el identificador del PE destino. */
-    int dest_id() const;
-    /** @brief Dirección de memoria asociada. */
-    uint64_t address() const;
-    /** @brief Calidad de servicio (QoS). */
-    uint8_t qos() const;
-    /** @brief Tamaño en bytes de la operación. */
-    uint32_t size() const;
-    /** @brief Número de líneas de caché involucradas. */
-    uint32_t num_lines() const;
-    /** @brief Índice de la primera línea de caché. */
-    uint32_t start_line() const;
-    /** @brief Línea de caché específica. */
-    uint32_t cache_line() const;
-    /** @brief Código de estado de la operación. */
-    uint32_t status() const;
-    /** @brief Vector de datos payload (palabras de 32 bits). */
-    const std::vector<uint32_t>& data() const;
+    // Getters
+    Operation get_operation() const;
+    int get_src_id() const;
+    int get_dest_id() const;
+    uint64_t get_address() const;
+    uint8_t get_qos() const;
+    uint32_t get_size() const;
+    uint32_t get_num_lines() const;
+    uint32_t get_start_line() const;
+    uint32_t get_cache_line() const;
+    uint32_t get_status() const;
+    const std::vector<uint32_t>& get_data() const;
+
+    // Setters
+    void set_operation(Operation op);
+    void set_src_id(int id);
+    void set_dest_id(int id);
+    void set_address(uint64_t addr);
+    void set_qos(uint8_t q);
+    void set_size(uint32_t s);
+    void set_num_lines(uint32_t n);
+    void set_start_line(uint32_t sl);
+    void set_cache_line(uint32_t cl);
+    void set_status(uint32_t st);
+    void set_data(const std::vector<uint32_t>& d);
 
     /**
      * @brief Genera una representación en texto del mensaje para depuración.

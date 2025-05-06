@@ -70,6 +70,20 @@ public:
      */
     void dump_to_file(const std::string& output_filename) const;
 
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+    /**
+     * @brief Imprime todas las instrucciones cargadas en consola.
+     *
+     * Para cada instrucción, muestra:
+     *   - Índice de instrucción en el vector.
+     *   - Valor en formato hexadecimal.
+     *   - Valor en formato binario de 64 bits.
+     */
+    void print_instructions() const;
+
+/* --------------------------------------------------------------------------------------------- */
+
 private:
     int pe_id_;                          /**< ID del PE asociado a esta memoria. */
     std::string binary_path;             /**< Directorio donde se encuentra el binario. */

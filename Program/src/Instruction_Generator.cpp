@@ -24,7 +24,7 @@ void InstructionGenerator::generate() const {
         }
 
         outfile.close();
-        std::cout << "Generated " << filename << "\n";
+        std::cout << "\n[Instruction Generator] Created " << filename << "\n";
     }
 }
 
