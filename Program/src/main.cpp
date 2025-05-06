@@ -210,7 +210,15 @@ void show_statistics() {
 
 void test_G() {
 	std::cout << "\n[TEST] Starting Test G...\n";
-	interconnect_system->system_test_G();
+	std::string file_path;
+    std::cout << "\n[Test] Enter path to instruction dump file: ";
+    std::cin >> file_path;
+	interconnect_system->system_test_G(file_path);
+	
+	//std::vector<Message> mensajes = interconnect_system->system_test_G(file_path);
+
+	std::cout << "[System] Mensajes decodificados:\n";
+   
 }
 
 void test_R() {

@@ -70,6 +70,12 @@ public:
      */
     void dump_to_file(const std::string& output_filename) const;
 
+    /**
+     * @brief Funcion para obtener la instruccion en la posicion deseada del vector de instrucciones
+     * 
+     */
+    std::string  get_instruction(int index) const;
+
 private:
     int pe_id_;                          /**< ID del PE asociado a esta memoria. */
     std::string binary_path;             /**< Directorio donde se encuentra el binario. */

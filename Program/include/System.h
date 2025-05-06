@@ -35,7 +35,7 @@ public:
      */
     void debug_print() const;
 
-    void system_test_G();
+    void system_test_G(const std::string& file_path);
     void system_test_R();
 
 private:

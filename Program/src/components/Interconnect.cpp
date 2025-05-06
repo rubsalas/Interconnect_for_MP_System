@@ -10,12 +10,6 @@ Interconnect::Interconnect(int num_pes, ArbitScheme scheme)
               << " as its arbitration scheme.\n";
 }
 
-void Interconnect::send_request(const Message& m) {
-    std::cout << "[Interconnect] send_request: src=" << m.src_id()
-              << " op=" << static_cast<int>(m.operation()) << "\n";
-    // TODO: enqueue into in_queues_[m.src_id()]
-}
-
 void Interconnect::tick() {
     std::cout << "[Interconnect] tick: processing messages according to scheme "
               << static_cast<int>(scheme_) << "\n";

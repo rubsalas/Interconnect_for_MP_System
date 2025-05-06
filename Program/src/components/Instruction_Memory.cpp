@@ -104,6 +104,14 @@ uint64_t InstructionMemory::parse_instruction(const std::string& text) {
     return value;
 }
 
+std::string InstructionMemory::get_instruction(int index) const {
+    if (index < 0 || index >= instructions.size()) {
+        throw std::out_of_range("Índice fuera de rango en get_instruction");
+    }
+    std::string binario = std::bitset<64>(instructions[index]).to_string(); 
+    return binario;
+}
+
 void InstructionMemory::dump_to_file(const std::string& output_filename) const {
     std::ofstream out(output_filename);
     if (!out.is_open()) {

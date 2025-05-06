@@ -3,6 +3,9 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include "../include/Message.h"
+#include <bitset>
+
 
 /* ---------------------------------------- Constructor ---------------------------------------- */
 
@@ -148,10 +151,105 @@ void System::debug_print() const {
 
 /* ---------------------------------------- Testing -------------------------------------------- */
 
-void System::system_test_G() {
+/**
+ * @brief Carga instrucciones binarias desde un archivo, las decodifica a objetos Message
+ *        y los imprime en consola y en un archivo de salida.
+ *
+ * Esta función interpreta cada línea del archivo como una instrucción de 64 bits, 
+ * donde el bit más significativo es el bit 63. Se ignoran los bits 63–43. A partir
+ * de los bits restantes, se extraen los campos según el tipo de instrucción (WRITE_MEM,
+ * READ_MEM, BROADCAST_INVALIDATE) y se construyen objetos Message. 
+ * 
+ * Cada mensaje decodificado se imprime en consola (en formato compacto y detallado)
+ * y se guarda en el archivo mensajes_generados.txt.
+ *
+ * @param file_path Ruta al archivo que contiene instrucciones binarias en texto plano.
+ * 
+ * @note Se espera que cada línea del archivo contenga exactamente 64 caracteres ('0' o '1').
+ * 
+ * @warning Las líneas con menos de 64 bits serán ignoradas.
+ */
+
+void System::system_test_G(const std::string& file_path) {
 	std::cout << "\n[TEST] Starting System Test G...\n";
-	// TODO
+    std::ifstream infile(file_path);
+    std::ofstream outfile("mensajes_generados.txt");
+
+    std::string line;
+    int mensajes_generados = 0;
+
+    if (!infile) {
+        std::cerr << "[System] Error: could not open " << file_path << "\n";
+        return;
+    }
+
+    outfile << "[System] Decoded messages from: " << file_path << "\n";
+
+    while (std::getline(infile, line)) {
+        if (line.length() < 64) {
+            std::cerr << "[Warning] Ignoring line with length < 64: " << line << "\n";
+            continue;
+        }
+
+        std::string opcode = line.substr(21, 2);  // Bits 42–41
+
+        Message msg(Operation::UNDEFINED);
+
+        if (opcode == "00") { // WRITE_MEM
+            msg = Message(
+                Operation::WRITE_MEM,
+                std::bitset<5>(line.substr(23, 5)).to_ulong(),     // src: bits 40–36
+                0,
+                std::bitset<16>(line.substr(28, 16)).to_ulong(),   // address: bits 35–20
+                std::bitset<4>(line.substr(60, 4)).to_ulong(),     // qos: bits 3–0
+                0,
+                std::bitset<8>(line.substr(44, 8)).to_ulong(),     // num_cache_lines: bits 19–12
+                std::bitset<8>(line.substr(52, 8)).to_ulong(),     // start_cache_line: bits 11–4
+                0, 0, {}
+            );
+
+        } else if (opcode == "01") { // READ_MEM
+            msg = Message(
+                Operation::READ_MEM,
+                std::bitset<5>(line.substr(23, 5)).to_ulong(),
+                0,
+                std::bitset<16>(line.substr(28, 16)).to_ulong(),
+                std::bitset<4>(line.substr(60, 4)).to_ulong(),
+                std::bitset<8>(line.substr(44, 8)).to_ulong(),
+                0, 0, 0, 0, {}
+            );
+
+        } else if (opcode == "10") { // BROADCAST_INVALIDATE
+            msg = Message(
+                Operation::BROADCAST_INVALIDATE,
+                std::bitset<5>(line.substr(23, 5)).to_ulong(),
+                0,
+                0,
+                std::bitset<4>(line.substr(60, 4)).to_ulong(),
+                0, 0, 0,
+                std::bitset<8>(line.substr(36, 8)).to_ulong(),     // cache_lines (bits 27–20)
+                0, {}
+            );
+
+        } else {
+            std::cerr << "[Warning] Opcode no reconocido: " << opcode << "\n";
+            continue;
+        }
+
+        // Imprimir en consola y escribir en archivo
+        std::cout << "[DEBUG] Mensaje creado: " << msg.to_string() << std::endl;
+        outfile << msg.to_string() << "\n";
+        mensajes_generados++;
+    }
+
+    outfile << "[System] Message decoding complete.\n";
+    outfile << "[System] Total messages decoded: " << mensajes_generados << "\n";
+    std::cout << "[System] Total messages decoded: " << mensajes_generados << "\n";
+
+    outfile.close();
 }
+    
+
 
 void System::system_test_R() {
 	std::cout << "\n[TEST] Starting System Test R...\n";
