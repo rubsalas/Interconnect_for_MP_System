@@ -76,6 +76,9 @@ public:
      */
     std::string  get_instruction(long unsigned int index) const;
 
+    std::vector<uint64_t> instructions;  /**< Vector interno de instrucciones. */
+
+
 /* ---------------------------------------- Testing -------------------------------------------- */
 
     /**
@@ -93,7 +96,6 @@ public:
 private:
     int pe_id_;                          /**< ID del PE asociado a esta memoria. */
     std::string binary_path;             /**< Directorio donde se encuentra el binario. */
-    std::vector<uint64_t> instructions;  /**< Vector interno de instrucciones. */
 
     /**
      * @brief Parsea una línea de texto a un valor de 64 bits.

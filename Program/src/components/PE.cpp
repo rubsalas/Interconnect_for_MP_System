@@ -19,6 +19,8 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
     uint8_t opcode = (instr >> 41) & 0b11;
     msg.set_src_id((instr >> 36) & 0b11111);
 
+    std::cout << 'Opcode: ' << static_cast<int>(opcode) << '\n';
+
     switch (opcode) {
         case 0b00: // WRITE_MEM
             msg.set_operation(Operation::WRITE_MEM);
@@ -26,6 +28,7 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
             msg.set_num_lines((instr >> 12) & 0xFF);
             msg.set_start_line((instr >> 4) & 0xFF);
             msg.set_qos(instr & 0xF);
+            break;
             
 
         case 0b01: // READ_MEM
@@ -33,15 +36,18 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
             msg.set_address((instr >> 20) & 0xFFFF);
             msg.set_size((instr >> 12) & 0xFF);
             msg.set_qos(instr & 0xF);
+            break;
             
 
         case 0b10: // BROADCAST_INVALIDATE
             msg.set_operation(Operation::BROADCAST_INVALIDATE);
             msg.set_cache_line((instr >> 20) & 0xFF);
             msg.set_qos(instr & 0xF); 
+            break;
 
         default:
-            msg.set_operation(Operation::UNDEFINED);   
+            msg.set_operation(Operation::UNDEFINED);  
+            break; 
 
     return msg;
     }
