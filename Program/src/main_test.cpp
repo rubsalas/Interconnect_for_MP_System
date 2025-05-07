@@ -6,31 +6,56 @@
 #include "../include/components/Local_Cache.h"
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Uso: " << argv[0] << " <cache_id> <line_index>\n";
+    if (argc != 4) {
+        std::cerr << "Uso: " << argv[0]
+                  << " <cache_id> <start_line> <num_lines>\n"
+                  << "Ejemplo: " << argv[0] << " 0 5 3\n";
         return 1;
     }
 
     try {
         uint32_t cache_id   = static_cast<uint32_t>(std::stoul(argv[1]));
-        uint32_t line_index = static_cast<uint32_t>(std::stoul(argv[2]));
+        uint32_t start_line = static_cast<uint32_t>(std::stoul(argv[2]));
+        uint32_t num_lines  = static_cast<uint32_t>(std::stoul(argv[3]));
 
-        // LLAMADA AL MÉTODO ESTÁTICO
-        std::vector<uint8_t> bytes = LocalCache::read_cache_from_file(cache_id, line_index);
+        // 1) Leemos num_lines bloques
+        auto bloques = LocalCache::read_cache_from_file(cache_id,
+        start_line, num_lines);
 
-        // Imprimimos los bytes
-        std::cout << "cache_" << cache_id
-                  << ".txt línea " << line_index << ":\n";
-        for (uint8_t b : bytes) {
-            std::cout
-              << std::hex << std::setw(2) << std::setfill('0')
-              << static_cast<int>(b) << ' ';
+        for (size_t i = 0; i < bloques.size(); ++i) {
+            const auto& bytes = bloques[i];
+            std::ostringstream oss;
+            // Construimos la cadena hex sin espacios
+            for (uint8_t b : bytes) {
+                oss 
+                    << std::hex << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(b);
+            }
+            std::cout << oss.str();
+            if (i + 1 < bloques.size()) {
+                std::cout << ",";    // separador entre bloques
+            }
         }
         std::cout << std::dec << "\n";
+        // CAMBIO >>>
+
     }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << "\n";
+    catch (const std::invalid_argument&) {
+        std::cerr << "Error: argumentos no numéricos.\n";
         return 2;
     }
+    catch (const std::out_of_range& e) {
+        std::cerr << "Error de rango: " << e.what() << "\n";
+        return 3;
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Error de E/S o formato: " << e.what() << "\n";
+        return 4;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error inesperado: " << e.what() << "\n";
+        return 5;
+    }
+
     return 0;
 }
