@@ -4,8 +4,10 @@
 #include <bitset>
 #include <filesystem>
 #include <iostream>
+#include <iomanip> 
 
 namespace fs = std::filesystem;
+
 
 LocalCache::LocalCache(int id)
     : id_(id), cache_data(BLOCKS) {
@@ -19,6 +21,15 @@ LocalCache::LocalCache(int id)
         // Inicializar Cache
         initialize();
 }
+
+LocalCache::LocalCache(int id, const std::string& file_path)
+  : id_(id)
+  , cache_data(BLOCKS)
+  , dump_path(file_path)
+{
+    // no llamamos a dump_to_text_file(), sólo preparamos la ruta
+}
+
 
 void LocalCache::initialize() {
     // Se llena con datos aleatorios
@@ -41,29 +52,29 @@ void LocalCache::fill_random() {
 }
 
 void LocalCache::dump_to_text_file() const {
-    // Asegurar que la carpeta existe
-    fs::path dir = "config/caches";
+    // 1) Asegurarse de que exista el directorio donde volcar
+    fs::path p(dump_path);
+    fs::create_directories(p.parent_path());
 
-    if (fs::exists(dir)) {
-        if (!fs::is_directory(dir)) {
-            throw std::runtime_error("Error: 'caches' existe pero no es una carpeta.");
-        }
-    } else {
-        // No existe, se crea
-        fs::create_directories(dir);
-    }
-    
-    std::ofstream out(dump_path);
+    // 2) Abrir el fichero en modo escritura (trunca si ya existe)
+    std::ofstream out(dump_path, std::ios::trunc);
     if (!out.is_open()) {
         throw std::runtime_error("Error: No se pudo crear el archivo: " + dump_path);
     }
 
+    // 3) Volcar cada bloque como una línea de 16 bytes en hex (32 dígitos)
     for (const auto& block : cache_data) {
         for (const auto& byte : block) {
-            out << std::bitset<8>(byte);
+            out << std::hex
+                << std::setw(2)
+                << std::setfill('0')
+                << static_cast<unsigned>(byte);
         }
-        out << "\n";
+        out << std::dec  // restaurar base decimal para seguridad
+            << "\n";
     }
 
     out.close();
 }
+
+
