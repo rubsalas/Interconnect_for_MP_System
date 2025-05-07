@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <queue>
+#include <deque>
 #include <mutex>
 #include "Message.h"
 
@@ -36,9 +36,18 @@ public:
     void push_message(const Message& m);
 
     /**
+     * @brief Extrae el siguiente mensaje según el esquema.
+     * @return Mensaje a procesar.
+     * @throws std::out_of_range si la cola está vacía.
+     */
+    Message pop_next();
+
+    /**
      * @brief Avanza un "tick" de simulación: procesa colas según el arbitraje.
      */
     void tick();
+
+/* ---------------------------------------- Testing -------------------------------------------- */
 
     /**
      * @brief Imprime en consola configuración y esquema actuales.
@@ -51,14 +60,14 @@ public:
      * Hace una copia temporal de la cola para no vaciarla, y muestra cada
      * Message::to_string(). Usa un mutex para acceso thread-safe.
      */
-    void debug_print_request_queue();
+    void debug_print_request_queue() const;
 
-
+/* --------------------------------------------------------------------------------------------- */
 
 private:
-    int num_pes_;                                  /**< Número de PEs conectados */
-    ArbitScheme scheme_;                           /**< Esquema de arbitraje */
-    std::queue<Message> in_queue_;      /**< Cola de Messages entrantes */
-    std::mutex          in_queue_mtx_;  /**< Protege in_queue_ contra accesos concurrentes. */
-    std::queue<Message> out_queue_;     /**< Cola de Messages salientes */
+    int                 num_pes_;       /**< Número de PEs conectados */
+    ArbitScheme         scheme_;        /**< Esquema de arbitraje */
+    std::deque<Message> in_queue_;      /**< Cola de Messages entrantes */
+    mutable std::mutex  in_queue_mtx_;  /**< Protege in_queue_ contra accesos concurrentes. */
+    std::deque<Message> out_queue_;     /**< Cola de Messages salientes */
 };

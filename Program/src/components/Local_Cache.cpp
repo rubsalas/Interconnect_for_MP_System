@@ -67,3 +67,42 @@ void LocalCache::dump_to_text_file() const {
 
     out.close();
 }
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+void LocalCache::read_test(uint32_t start_line, uint32_t num_lines) const {
+    // Verificar que el rango [start_line, start_line + num_lines) sea válido
+    if (start_line >= BLOCKS || start_line + num_lines > BLOCKS) {
+        throw std::out_of_range(
+            "LocalCache::read: rango fuera de límites");
+    }
+
+    std::cout << "[LocalCache] PE " << id_
+              << ": reading lines " << start_line
+              << " to " << (start_line + num_lines - 1)
+              << "\n";
+
+    // Para cada línea solicitada…
+    /*for (uint32_t offset = 0; offset < num_lines; ++offset) {
+        uint32_t line = start_line + offset;
+
+        // Imprimir índice de línea
+        std::cout << "  Line " << std::setw(3) << line << ":";
+
+        // Cada byte de la línea en hexadecimal con dos dígitos
+        for (uint8_t byte : cache_data[line]) {
+            std::cout << " 0x"
+                      << std::hex << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(byte);
+        }
+
+        // Restaurar formato y terminar línea
+        std::cout << std::dec
+                  << std::setfill(' ')
+                  << "\n";
+    }*/
+
+    std::cout << std::endl;
+}
+
+/* --------------------------------------------------------------------------------------------- */
