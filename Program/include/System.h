@@ -32,8 +32,12 @@ public:
 
 /* --------------------------------------------------------------------------------------------- */
 
+/* ---------------------------------------- Statistics ----------------------------------------- */
+
     /** @brief Reporta estadísticas finales tras la simulación. */
     void report_statistics() const;
+
+/* --------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------- Testing -------------------------------------------- */
 
@@ -105,5 +109,10 @@ private:
     void interconnect_execution_cycle();
     /** @brief Espera a que el hilo del Interconnect termine. */
     void join_interconnect_thread();
+
+/* --- */
+
+    /** @brief Devuelve true si TODOS los PEs están en estado FINISHED. */
+    bool all_pes_finished() const;
 
 };

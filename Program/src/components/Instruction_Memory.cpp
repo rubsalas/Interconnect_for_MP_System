@@ -28,15 +28,15 @@ void InstructionMemory::initialize() {
     }
 
     // 2) Mostrar por consola
-    std::cout << "[IM PE" << pe_id_ << "] Instrucciones cargadas (" 
-              << size() << "):\n";
-    for (size_t i = 0; i < size(); ++i) {
-        uint64_t instr = fetch_instruction(i);
-        std::cout << "  [" << i << "] 0x" 
-                  << std::hex << instr 
-                  << " (bin: " << std::bitset<64>(instr) << ")\n";
-    }
-    std::cout << std::dec; // restablecer flujo a decimal
+    // std::cout << "[IM PE" << pe_id_ << "] Instrucciones cargadas (" 
+    //           << size() << "):\n";
+    // for (size_t i = 0; i < size(); ++i) {
+    //     uint64_t instr = fetch_instruction(i);
+    //     std::cout << "  [" << i << "] 0x" 
+    //               << std::hex << instr 
+    //               << " (bin: " << std::bitset<64>(instr) << ")\n";
+    // }
+    // std::cout << std::dec; // restablecer flujo a decimal
 
     // 3) Volcar a fichero
     const std::string dir = "config/instruction_memories";

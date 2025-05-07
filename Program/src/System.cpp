@@ -138,7 +138,6 @@ void System::start_pe_thread(int pe_id) {
     std::cout << "[System] Launching thread for PE " << pe_id << "...\n";
 }
 
-
 void System::pe_execution_cycle(int pe_id) {
     // 0.1) Referencia al PE correspondiente
     PE& pe = pes_.at(pe_id);
@@ -216,7 +215,6 @@ void System::pe_execution_cycle(int pe_id) {
             pe.set_response_state(PEResponseState::WAITING);
 
             /* TODO: Revisar si hay alguna respuesta por venir */
-
         }
 
         // FINISH TEST
@@ -225,13 +223,12 @@ void System::pe_execution_cycle(int pe_id) {
     }
 
     // TESTING
-    std::cout << "\n[PE EXE Test] Dumping Interconnect request queue:\n";
-    interconnect_->debug_print_request_queue();
+    std::cout << "\n[PE EXE Test] Dumping Interconnect in_queue:\n";
+    interconnect_->debug_print_in_queue();
 
     // Fin del thread
     std::cout << "\n[PE EXE] Thread ending for PE " << pe.get_id() << "\n";
 }
-
 
 void System::join_pe_threads() {
     // Espera a cada hilo para evitar terminación prematura
@@ -261,6 +258,51 @@ void System::interconnect_execution_cycle() {
     std::cout << "[System] Interconnect thread debug print test.\n";
     interconnect_->debug_print();
 
+    /* Ciclo de ejecucion correra hasta que el estado del PE llegue a FINISHED */
+    while (interconnect_->get_state() != ICState::FINISHED) {
+
+        // 1) Si no hay nada en la cola…
+        if (interconnect_->get_in_queue().empty()) {
+            interconnect_->set_state(ICState::IDLE);
+            return;
+        }
+
+        // 2) Empezamos a recibir/arbitrar
+        interconnect_->set_state(ICState::RECEIVING);
+        // … bloqueamos mutex, etc. …
+
+        interconnect_->set_state(ICState::PROCESSING);
+        /* extrae el siguiente Message de la cola ordenada de in_queue */
+        Message next_msg = interconnect_->pop_next();
+        /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion*/
+        interconnect_->push_mid_processing(next_msg);
+
+        // Imprime el mid_processing_queue para Testing
+        std::cout << "\n[System Test] Dumping Interconnect mid_processing_queue:\n";
+        interconnect_->debug_print_mid_processing_queue();
+
+        //set_state(ICState::SENDING);
+        // … despachamos msg a su cola de salida …
+        // interconnect_->
+
+        // 3) Después de enviar, volvemos a IDLE o repetimos
+        interconnect_->set_state(interconnect_->get_in_queue().empty()
+                                                ? ICState::IDLE : ICState::RECEIVING);
+
+        /* Revisa la condicion de parada */
+        // 1) Todos los PEs terminaron?
+        if (all_pes_finished()
+            // 2) No hay mensajes esperando en la cola de entrada?
+            && interconnect_->in_queue_empty()
+            // 3) Ni en la cola intermedia de latencia?
+            && interconnect_->mid_processing_empty())
+            // 4) TODO: faltaria out_queue
+        {
+            interconnect_->set_state(ICState::FINISHED);  // condición de parada cumplida
+        }
+
+    }
+
     std::cout << "[System] Interconnect Execution Cycle (thread) ending...\n";
 }
 
@@ -271,8 +313,16 @@ void System::join_interconnect_thread() {
     std::cout << "[System] Interconnect thread has joined.\n";
 }
 
-
 /* --------------------------------------------------------------------------------------------- */
+
+bool System::all_pes_finished() const {
+    for (const auto& pe : pes_) {
+        if (pe.get_state() != PEState::FINISHED) {
+            return false;
+        }
+    }
+    return true;
+}
 
 /* ---------------------------------------- Statistics ----------------------------------------- */
 
@@ -303,6 +353,7 @@ void System::debug_print() const {
         std::cout << "\n[System] Interconnect not initialized.";
     }
 }
+
 
 /**
  * @brief Carga instrucciones binarias desde un archivo, las decodifica a objetos Message
@@ -403,7 +454,6 @@ void System::system_test_G(const std::string& file_path) {
 }
     
 
-
 void System::system_test_R() {
 	std::cout << "\n[TEST] Starting System Test R...\n";
 
@@ -421,6 +471,7 @@ void System::system_test_R() {
                   << msg.to_string() << "\n";
     }
 
+
     // MESSAGE TESTING
             // 3) Creamos un mensaje de prueba (READ_MEM) con datos falsos
             /*Message actual_pe_message(
@@ -437,7 +488,9 @@ void System::system_test_R() {
                 {}                            // data vacío
             );*/
 
+
     //run();
+
 
     std::cout << "\n[System Test] Printing each PE's current message after starting threads:\n";
 
@@ -452,10 +505,8 @@ void System::system_test_R() {
     }
 
 
-    std::cout << "\n[System Test] Dumping Interconnect request queue:\n";
-    interconnect_->debug_print_request_queue();
-
-
+    std::cout << "\n[System Test] Dumping Interconnect in_queue:\n";
+    interconnect_->debug_print_in_queue();
 
 
     // 4) Fin del programa
