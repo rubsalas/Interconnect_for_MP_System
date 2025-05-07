@@ -25,8 +25,51 @@ public:
     /** @brief Inicializa PEs, caches, interconnect y memoria compartida. */
     void initialize();
 
-    /** @brief Ejecuta la simulación. */
+/* ----------------------------------------- Execution ----------------------------------------- */
+
+    /** @brief Arranca todos los hilos de PEs y del Interconnect. */
     void run();
+
+/* --------------------------------------------------------------------------------------------- */
+
+    /** @brief Reporta estadísticas finales tras la simulación. */
+    void report_statistics() const;
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+    /** @brief Imprime en consola el ID y QoS de cada PE para depuración. */
+    void debug_print() const;
+
+    void system_test_G(const std::string& file_path);
+    void system_test_R();
+
+/* --------------------------------------------------------------------------------------------- */
+
+private:
+    int                             total_pes_;             /**< Número de PEs configurados. */
+    std::vector<PE>                 pes_;                   /**< Vector de PEs del sistema. */
+    ArbitScheme                     scheme_;                /**< Esquema de arbitraje seleccionado. */
+    std::unique_ptr<Interconnect>   interconnect_;          /**< Interconnect para enrutar mensajes. */
+    std::vector<LocalCache>         caches_;                /**< Caches Locales L1 para cada PE. */
+    std::unique_ptr<SharedMemory>   shared_memory_;         /**< Interconnect para enrutar mensajes. */
+
+    std::vector<std::thread>        pe_threads_;            /**< Hilos que ejecutan cada PE. */
+    std::thread                     interconnect_thread_;   /**< Hilo para el Interconnect. */
+
+    /** @brief Crea e instancia el Interconnect como unico */
+    void initialize_interconnect();
+    /** @brief Crea e inicializa los PEs con QoS por defecto. */
+    void initialize_pes();
+    /** @brief Inicializa un caché local por cada PE (sin QoS). */
+    void initialize_caches();
+    /** @brief Inicializa la memoria compartida del sistema. */
+    void initialize_shared_memory();
+
+/* ------------------------------------ */
+/*                                      */
+/*             PE's threads             */
+/*                                      */
+/* ------------------------------------ */
 
     /**
      * @brief Lanza un hilo para el PE en la posición `pe_id` del vector pes_.
@@ -37,53 +80,6 @@ public:
      */
     void start_pe_thread(int pe_id);
 
-    /** @brief Espera a que todos los hilos de PE terminen. */
-    void join_pe_threads();
-
-    /** @brief Reporta estadísticas finales tras la simulación. */
-    void report_statistics() const;
-
-    /**
-     * @brief Imprime en consola el ID y QoS de cada PE para depuración.
-     */
-    void debug_print() const;
-
-    void system_test_G(const std::string& file_path);
-    void system_test_R();
-
-private:
-    int                             total_pes_;     /**< Número de PEs configurados. */
-    std::vector<PE>                 pes_;           /**< Vector de PEs del sistema. */
-    ArbitScheme                     scheme_;        /**< Esquema de arbitraje seleccionado. */
-    std::unique_ptr<Interconnect>   interconnect_;  /**< Interconnect para enrutar mensajes. */
-    std::vector<LocalCache>         caches_;        /**< Caches Locales L1 para cada PE. */
-    std::unique_ptr<SharedMemory>   shared_memory_; /**< Interconnect para enrutar mensajes. */
-
-    // --------------------------------------------------------------------
-    // Sub­sistema de threading
-    // --------------------------------------------------------------------
-    std::vector<std::thread> pe_threads_; /**< Hilos que ejecutan cada PE. */
-
-    /**
-     * @brief Crea e instancia el Interconnect como unico
-     */
-    void initialize_interconnect();
-    
-    /**
-     * @brief Crea e inicializa los PEs con QoS por defecto.
-     */
-    void initialize_pes();
-
-    /**
-     * @brief Inicializa un caché local por cada PE (sin QoS).
-     */
-    void initialize_caches();
-
-    /** 
-     * @brief Inicializa la memoria compartida del sistema. 
-     */
-    void initialize_shared_memory();
-
     /**
      * @brief Rutina que corre dentro de cada hilo de PE.
      *
@@ -93,4 +89,21 @@ private:
      * @param pe_id Índice del PE en el vector pes_.
      */
     void pe_execution_cycle(int pe_id);
+
+    /** @brief Espera a que todos los hilos de PE terminen. */
+    void join_pe_threads();
+
+/* ------------------------------------ */
+/*                                      */
+/*         Interconnect's thread        */
+/*                                      */
+/* ------------------------------------ */
+
+    /** @brief Arranca el hilo que corre interconnect_execution_cycle(). */
+    void start_interconnect_thread();
+    /** @brief Rutina que corre en el hilo del Interconnect. */
+    void interconnect_execution_cycle();
+    /** @brief Espera a que el hilo del Interconnect termine. */
+    void join_interconnect_thread();
+
 };
