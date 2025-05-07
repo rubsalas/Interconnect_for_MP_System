@@ -153,81 +153,71 @@ void System::pe_execution_cycle(int pe_id) {
           << "\n";
 
     // 0.3) Mostrar instrucciones por correr
-    /*std::cout << "[PE Worker] Showing instructions that will be executed by PE "
-              << pe.get_id() << "\n" ;*/
+    //std::cout << "[PE Worker] Showing instructions that will be executed by PE " << pe.get_id() << "\n" ;
     //pe.instruction_memory_.print_instructions();
 
     /* Ciclo de ejecucion correra hasta que el estado del PE llegue a FINISHED */
     while (pe.get_state() != PEState::FINISHED) {
 
-        // PE manda al IM a convertir la instruccion a Mensaje
+        /* Cuando el PE este IDLE puede obtener una nueva instruccion*/
+        if (pe.get_state() == PEState::IDLE) {
 
-        /* Primero, modificar en IM la funcion load_from_file() para dejar correctamente el vector de instrucciones */
-        /* IM debe tener una funcion get_instruction(num_instruccion) que retorne el string de esta */
-        /* Se le pasara el pc con el numero de instruccion actual */
-        //std::string instruction = pe.instruction_memory_.get_instruction(pc);
+            std::cout << "[PE " << pe.get_id() << "] State=IDLE. Getting new instruction...\n";
 
-        /* PE tendrá esta funcion que es la que retornará la instruccion como Message */
-        //Message actual_pe_message = pe.convert_to_message(instruction);
+            // 1) Cambiar el estado del PE a RUNNING ya que se pondrá a correr
+            pe.set_state(PEState::RUNNING);
 
-        // MESSAGE TESTING
-        // 3) Creamos un mensaje de prueba (READ_MEM) con datos falsos
-        Message actual_pe_message(
-            Operation::WRITE_MEM,         // Tipo de operación
-            pe.get_id(),                  // src = este PE
-            -1,                           // dst = Interconnect (no se usa aquí)
-            0x100 * pe.get_qos(),         // address varía según el PE
-            pe.get_qos(),                 // QoS del PE
-            4 * pe.get_qos(),             // size = ejemplo variable
-            4,                            // num_of_cache_lines (dummy)
-            pe.get_qos() + 16,            // start_cache_line (dummy)
-            pe.get_qos() + 1080,          // cache_line (dummy)
-            0,                            // status (no aplica para READ_MEM)
-            {}                            // data vacío
-        );
+            /* PE manda a convertir la instruccion del Instruction Memory,
+            ubicada en el PC actual, a Message */
+            Message actual_pe_message = pe.convert_to_message(pe.get_pc());
 
-        /* PE dejará el Message recien creado como el actual a ejecutar y/o enviar a Interconnect */
-        // 4) Almacenamos el mensaje en el PE (para debug o uso interno)
-        pe.set_actual_message(actual_pe_message);
+            /* PE dejará el Message recien creado como el actual a ejecutar y/o enviar a Interconnect */
+            // 4) Almacenamos el mensaje en el PE (para debug o uso interno)
+            pe.set_actual_message(actual_pe_message);
 
-        // Imprime ID del PE y el contenido formateado del mensaje
-        /*std::cout << "  PE " << pe.get_id() << ": "
-                  << actual_pe_message.to_string() << "\n";*/
+            // Imprime ID del PE y el contenido formateado del mensaje
+            /*std::cout << "  PE " << pe.get_id() << ": "
+                    << actual_pe_message.to_string() << "\n";*/
 
-        /* Se revisará si ya llegó a la ultima instruccion, si no continua el ciclo */
-        // 4) Si la operación es END, terminamos el bucle de ejecución de este PE
-        if (pe.get_actual_message().get_operation() == Operation::END) {
-            std::cout << "[PE " << pe_id << "] END instruction encountered, stopping execution...\n";
-            break;
+            /* Se revisará si ya llegó a la ultima instruccion, si no continua el ciclo */
+            // 4) Si la operación es END, terminamos el bucle de ejecución de este PE
+            if (pe.get_actual_message().get_operation() == Operation::END) {
+                std::cout << "[PE " << pe_id << "] END instruction encountered, stopping execution...\n";
+                break;
+            }
+
+            /* Si es WRITE_MEM se trae el dato de Cache */
+            if (pe.get_actual_message().get_operation() == Operation::WRITE_MEM) {
+                // 1) Avisamos por consola que se va a leer del cache
+                std::cout << "[PE " << pe.get_id() << "] WRITE_MEM detected – reading from cache:\n";
+
+                /* TODO: */
+                // 2) Invocamos al método de LocalCache que simula la lectura
+                cache.read_test(pe.get_actual_message().get_start_line(),
+                                pe.get_actual_message().get_num_lines());
+
+                /* TODO: Confirmacion */
+
+                /* TODO: Enviar a Interconnect (Ingresarlo al mensaje antes ?) */
+
+                // 3) Aviso de que terminó la lectura
+                std::cout << "[PE " << pe.get_id() << "] Cache reading complete.\n";
+            }
+
+            // 5) Enviamos la petición al Interconnect
+            std::cout << "[PE EXE] Sending message to Interconnect from PE " 
+                    << pe.get_id() << "...\n";
+            interconnect_->push_message(pe.get_actual_message());
+
+            // 6) Cambiar el estado del PE a STALLED ya que se acaba de enviar la instruccion a ejecutar
+            pe.set_state(PEState::STALLED);
+
+            // 7) Cambiar el estado de respuesta del PE a WAITING ya que puede ahora esperar una respuesta
+            pe.set_response_state(PEResponseState::WAITING);
+
+            /* TODO: Revisar si hay alguna respuesta por venir */
+
         }
-
-        /* Si es WRITE_MEM se trae el dato de Cache */
-        if (pe.get_actual_message().get_operation() == Operation::WRITE_MEM) {
-            // 1) Avisamos por consola que se va a leer del cache
-            std::cout << "[PE " << pe.get_id() << "] WRITE_MEM detected – reading from cache:\n";
-
-            /* TODO: */
-            // 2) Invocamos al método de LocalCache simula la lectura
-            cache.read_test(pe.get_actual_message().get_start_line(),
-                            pe.get_actual_message().get_num_lines());
-
-            /* TODO: Confirmacion */
-
-            /* TODO: Enviar a Interconnect (Ingresarlo al mensaje antes ?) */
-
-            // 3) Aviso de que terminó la lectura
-            std::cout << "[PE " << pe.get_id() << "] Cache reading complete.\n";
-        }
-
-        // 5) Enviamos la petición al Interconnect
-        std::cout << "[PE EXE] Sending message to Interconnect from PE " 
-                << pe.get_id() << "...\n";
-        interconnect_->push_message(pe.get_actual_message());
-
-        // 6) Cambiar el estado del PE a STALLED ya que estara esperando la respuesta del Message
-        pe.set_state(PEState::STALLED);
-
-        /* TODO: Revisar si hay alguna respuesta por venir */
 
         // FINISH TEST
         // Pasa el PE a FINISHED para terminar el ciclo
@@ -430,6 +420,22 @@ void System::system_test_R() {
         std::cout << "  PE " << pe.get_id() << ": "
                   << msg.to_string() << "\n";
     }
+
+    // MESSAGE TESTING
+            // 3) Creamos un mensaje de prueba (READ_MEM) con datos falsos
+            /*Message actual_pe_message(
+                Operation::WRITE_MEM,         // Tipo de operación
+                pe.get_id(),                  // src = este PE
+                -1,                           // dst = Interconnect (no se usa aquí)
+                0x100 * pe.get_qos(),         // address varía según el PE
+                pe.get_qos(),                 // QoS del PE
+                4 * pe.get_qos(),             // size = ejemplo variable
+                4,                            // num_of_cache_lines (dummy)
+                pe.get_qos() + 16,            // start_cache_line (dummy)
+                pe.get_qos() + 1080,          // cache_line (dummy)
+                0,                            // status (no aplica para READ_MEM)
+                {}                            // data vacío
+            );*/
 
     //run();
 

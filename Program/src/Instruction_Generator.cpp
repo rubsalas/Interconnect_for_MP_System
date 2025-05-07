@@ -34,7 +34,7 @@ std::string InstructionGenerator::generate_instruction(int pe_id) const {
 
     std::uniform_int_distribution<int> addr_dist(0, (MEM_SIZE - 1) / 4);
     std::uniform_int_distribution<int> cache_line_dist(0, CACHE_LINES - 1);
-    std::uniform_int_distribution<int> num_cache_lines_dist(1, CACHE_LINES);
+    
     std::uniform_int_distribution<int> size_dist(1, 64);
     std::uniform_int_distribution<int> qos_dist(0, MAX_QOS);
 
@@ -43,8 +43,9 @@ std::string InstructionGenerator::generate_instruction(int pe_id) const {
     switch (instr_type) {
         case 0: { // WRITE_MEM
             int addr = addr_dist(rng_) * 4;
-            int num_cache_lines = num_cache_lines_dist(rng_);
             int start_cache_line = cache_line_dist(rng_);
+            std::uniform_int_distribution<int> num_cache_lines_dist(1, CACHE_LINES - start_cache_line);
+            int num_cache_lines = num_cache_lines_dist(rng_);
             int qos = qos_dist(rng_);
             instruction = "WRITE_MEM " + std::to_string(pe_id) + ", " +
                           std::to_string(addr) + ", " +

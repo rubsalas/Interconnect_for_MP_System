@@ -10,7 +10,7 @@
 // Declaración anticipada
 Message convert_to_message(const InstructionMemory& instruction_memory_, int index);
 
-int main(int argc, char* argv[]) {
+int main_test(int argc, char* argv[]) {
     if (argc != 3) {
         std::cerr << "Uso: " << argv[0] << " <archivo_instrucciones> <index>" << std::endl;
         return 1;

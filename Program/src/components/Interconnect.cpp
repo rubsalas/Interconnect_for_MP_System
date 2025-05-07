@@ -12,6 +12,7 @@ Interconnect::Interconnect(int num_pes, ArbitScheme scheme)
 void Interconnect::push_message(const Message& m) {
     std::lock_guard<std::mutex> lock(in_queue_mtx_);
 
+    /* Ordenamiento segun esquema de arbitraje */
     if (scheme_ == ArbitScheme::FIFO) {
         // FIFO puro: al final
         in_queue_.push_back(m);

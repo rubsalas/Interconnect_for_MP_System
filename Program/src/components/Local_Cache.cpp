@@ -72,15 +72,15 @@ void LocalCache::dump_to_text_file() const {
 
 void LocalCache::read_test(uint32_t start_line, uint32_t num_lines) const {
     // Verificar que el rango [start_line, start_line + num_lines) sea válido
+    std::cout << "[LocalCache] PE " << id_
+              << ": reading lines " << start_line
+              << " to " << (start_line + num_lines - 1)
+              << "\n";
     if (start_line >= BLOCKS || start_line + num_lines > BLOCKS) {
         throw std::out_of_range(
             "LocalCache::read: rango fuera de límites");
     }
 
-    std::cout << "[LocalCache] PE " << id_
-              << ": reading lines " << start_line
-              << " to " << (start_line + num_lines - 1)
-              << "\n";
 
     // Para cada línea solicitada…
     /*for (uint32_t offset = 0; offset < num_lines; ++offset) {

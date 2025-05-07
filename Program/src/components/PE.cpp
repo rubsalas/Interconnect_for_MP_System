@@ -10,8 +10,13 @@ PE::PE(int id, uint8_t qos)
     instruction_memory_.initialize();
 }
 
-Message convert_to_message(const InstructionMemory& instruction_memory_, int index) {
-    std::string bin = instruction_memory_.get_instruction(index);
+void PE::pc_plus_4() {
+    // Sumamos 1 al contador de programa
+    ++pc_;
+}
+
+Message PE::convert_to_message(int instruction_index) {
+    std::string bin = instruction_memory_.get_instruction(instruction_index);
     uint64_t instr = std::bitset<64>(bin).to_ullong();
     
     Message msg(Operation::UNDEFINED);
@@ -19,7 +24,7 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
     uint8_t opcode = (instr >> 41) & 0b11;
     msg.set_src_id((instr >> 36) & 0b11111);
 
-    std::cout << 'Opcode: ' << static_cast<int>(opcode) << '\n';
+    std::cout << "Opcode: " << static_cast<uint8_t>(opcode) << '\n';
 
     switch (opcode) {
         case 0b00: // WRITE_MEM
@@ -27,7 +32,7 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
             msg.set_address((instr >> 20) & 0xFFFF);
             msg.set_num_lines((instr >> 12) & 0xFF);
             msg.set_start_line((instr >> 4) & 0xFF);
-            msg.set_qos(instr & 0xF);
+            msg.set_qos(qos_);
             break;
             
 
@@ -35,14 +40,14 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
             msg.set_operation(Operation::READ_MEM);
             msg.set_address((instr >> 20) & 0xFFFF);
             msg.set_size((instr >> 12) & 0xFF);
-            msg.set_qos(instr & 0xF);
+            msg.set_qos(qos_);
             break;
             
 
         case 0b10: // BROADCAST_INVALIDATE
             msg.set_operation(Operation::BROADCAST_INVALIDATE);
             msg.set_cache_line((instr >> 20) & 0xFF);
-            msg.set_qos(instr & 0xF); 
+            msg.set_qos(qos_); 
             break;
 
         default:
@@ -52,6 +57,7 @@ Message convert_to_message(const InstructionMemory& instruction_memory_, int ind
     return msg;
     }
 }
+
 /* ----------------------------------- Getters & Setters --------------------------------------- */
 
 int PE::get_id() const {
@@ -68,6 +74,14 @@ PEState PE::get_state() const {
 
 void PE::set_state(PEState s) {
     state_ = s;
+}
+
+PEResponseState PE::get_response_state() const {
+    return resp_state_;
+}
+
+void PE::set_response_state(PEResponseState state) {
+    resp_state_ = state;
 }
 
 uint64_t PE::get_pc() const {
