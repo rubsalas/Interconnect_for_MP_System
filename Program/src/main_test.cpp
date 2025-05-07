@@ -1,53 +1,36 @@
 #include <iostream>
-#include <cstdlib>
-#include "../include/components/PE.h" // Aquí se asume que convert_to_message está declarada aquí
-#include "../include/components/Instruction_Memory.h" 
-#include "../include/Message.h" 
-#include <bitset>
-#include <fstream>
-
-
-// Declaración anticipada
-Message convert_to_message(const InstructionMemory& instruction_memory_, int index);
+#include <vector>
+#include <iomanip>
+#include <cstdint>
+#include <exception>
+#include "../include/components/Local_Cache.h"
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
-        std::cerr << "Uso: " << argv[0] << " <archivo_instrucciones> <index>" << std::endl;
+        std::cerr << "Uso: " << argv[0] << " <cache_id> <line_index>\n";
         return 1;
-    }
-
-    std::string filename = argv[1];
-    int index = std::atoi(argv[2]);
-
-    // Cargamos las instrucciones manualmente (sin usar initialize ni pe_id)
-    InstructionMemory memoria(0); // Constructor requiere un ID, pero no se usará
-    memoria.instructions.clear(); // Limpia cualquier instrucción previa
-
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "No se pudo abrir el archivo: " << filename << std::endl;
-        return 1;
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-        uint64_t instr = std::bitset<64>(line).to_ullong();
-        memoria.instructions.push_back(instr);
     }
 
     try {
-        Message msg = convert_to_message(memoria, index);
+        uint32_t cache_id   = static_cast<uint32_t>(std::stoul(argv[1]));
+        uint32_t line_index = static_cast<uint32_t>(std::stoul(argv[2]));
 
-        std::cout << "Mensaje decodificado:\n";
-        std::cout << msg.to_string() << std::endl;
-        std::cout << static_cast<int>(msg.get_operation())  << std::endl;
+        // LLAMADA AL MÉTODO ESTÁTICO
+        std::vector<uint8_t> bytes = LocalCache::read_cache_from_file(cache_id, line_index);
 
-
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
+        // Imprimimos los bytes
+        std::cout << "cache_" << cache_id
+                  << ".txt línea " << line_index << ":\n";
+        for (uint8_t b : bytes) {
+            std::cout
+              << std::hex << std::setw(2) << std::setfill('0')
+              << static_cast<int>(b) << ' ';
+        }
+        std::cout << std::dec << "\n";
     }
-
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 2;
+    }
     return 0;
 }

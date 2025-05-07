@@ -48,6 +48,30 @@ public:
      */
     void dump_to_text_file() const;
 
+    /* ---------------------------------------- Testing -------------------------------------------- */
+
+    /**
+     * @brief Simula la lectura de varias líneas de caché.
+     *
+     * Imprime en consola el contenido de cada byte en hexadecimal
+     * para las líneas [start_line, start_line+num_of_lines).
+     *
+     * @param start_line Índice de la primera línea a leer (0-based).
+     * @param num_of_lines Cantidad de líneas a leer.
+     * @throws std::out_of_range Si el rango excede BLOCKS.
+     */
+    void read_test(uint32_t start_line, uint32_t num_lines) const;
+
+   // static constexpr size_t BLOCKS = 128;
+   // static constexpr size_t BLOCK_SIZE = 16;
+
+
+    // std::array<uint8_t, BLOCK_SIZE> get_cache_line(uint32_t line_index) const;
+
+    static std::vector<uint8_t> read_cache_from_file(uint32_t id,
+        uint32_t line_index);
+      /* --------------------------------------------------------------------------------------------- */
+
 private:
     int id_;                            /**< ID del PE al que pertenece. */
     std::string dump_path;              /**< Directorio donde se volcara el cache. */
