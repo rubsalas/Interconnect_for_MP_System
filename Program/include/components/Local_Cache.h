@@ -71,6 +71,13 @@ public:
     static std::vector<std::vector<uint8_t>> read_cache_from_file(uint32_t id, 
                                                                   uint32_t start_line, 
                                                                   uint32_t num_lines);
+
+
+    static void write_cache_lines(uint32_t id, uint32_t start_line,
+    const std::vector<std::vector<uint8_t>>& lines);
+
+    std::array<uint8_t, BLOCK_SIZE>
+    get_cache_line(uint32_t line_index) const;
       /* --------------------------------------------------------------------------------------------- */
 
 private:

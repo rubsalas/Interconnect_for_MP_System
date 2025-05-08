@@ -185,4 +185,57 @@ LocalCache::read_cache_from_file(uint32_t id,
     return result;
 }
 
+void LocalCache::write_cache_lines(uint32_t id,
+    uint32_t start_line,
+    const std::vector<std::vector<uint8_t>>& lines) {
+// 1) Ruta al fichero
+std::string filename = "../config/caches/cache_" + std::to_string(id) + ".txt";
+
+// 2) Leer todo el fichero en memoria
+std::ifstream infile(filename);
+if (!infile.is_open()) {
+throw std::runtime_error("No se pudo abrir el archivo " + filename);
+}
+std::vector<std::string> file_lines;
+std::string line;
+while (std::getline(infile, line)) {
+file_lines.push_back(line);
+}
+infile.close();
+
+// 3) Validar rango
+if (start_line >= file_lines.size() ||
+start_line + lines.size() > file_lines.size()) {
+throw std::out_of_range(
+"LocalCache::write_cache_lines: líneas fuera de rango"
+);
+}
+
+// 4) Reemplazar cada línea por la nueva
+for (size_t i = 0; i < lines.size(); ++i) {
+const auto& bytes = lines[i];
+if (bytes.size() != BLOCK_SIZE) {
+throw std::invalid_argument(
+"LocalCache::write_cache_lines: cada línea debe tener " +
+std::to_string(BLOCK_SIZE) + " bytes"
+);
+}
+std::ostringstream oss;
+for (uint8_t b : bytes) {
+oss << std::hex << std::setw(2) << std::setfill('0')
+<< static_cast<int>(b);
+}
+file_lines[start_line + i] = oss.str();
+}
+
+// 5) Volcar de nuevo al disco
+std::ofstream outfile(filename, std::ios::trunc);
+if (!outfile.is_open()) {
+throw std::runtime_error("No se pudo escribir en el archivo " + filename);
+}
+for (const auto& l : file_lines) {
+outfile << l << "\n";
+}
+outfile.close();
+}
 /* --------------------------------------------------------------------------------------------- */
