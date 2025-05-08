@@ -16,10 +16,10 @@ enum class ArbitScheme {
 
 enum class ICState {
     IDLE,           /**< No hay peticiones pendientes. */
-    RECEIVING,      /**< Leyendo nuevas solicitudes en in_queue_. */
+    //RECEIVING,      /**< Leyendo nuevas solicitudes en in_queue_. */
     PROCESSING,     /**< Decodificando la petición y preparando la acción. */
-    MEM_ACCESS,     /**< Modelando la latencia de acceso a memoria principal. */
-    RESPONDING,     /**< Encolando y despachando las respuestas a los PEs. */
+    //MEM_ACCESS,     /**< Modelando la latencia de acceso a memoria principal. */
+    //RESPONDING,     /**< Encolando y despachando las respuestas a los PEs. */
     FINISHED        /**< No entrarán mas mensajes y se han respondido todos */
 };
 
@@ -44,6 +44,18 @@ public:
     void tick();
 
 /* ------------------------------------- Message Handling -------------------------------------- */
+
+    /**
+     * @brief Comprueba si todas las colas internas están vacías.
+     *
+     * Esto abarca:
+     *  - Cola de peticiones entrantes (in_queue_).
+     *  - Cola de mensajes en ejecución (mid_processing_queue_).
+     *  - (Opcional) otras colas como la de respuestas si las implementas.
+     *
+     * @return true si ninguna cola contiene mensajes pendientes.
+     */
+    bool all_queues_empty() const;
 
 /* ------------------------------------ */
 /*                                      */

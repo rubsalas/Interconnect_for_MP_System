@@ -9,7 +9,7 @@ namespace fs = std::filesystem;
 
 SharedMemory::SharedMemory()
     : data(MEMORY_SIZE, 0) {
-        std::cout << "\n[SharedMemory] Initializing shared memory with "
+        std::cout << "[SharedMemory] Initializing shared memory with "
               << MEMORY_SIZE << " words of 32 bits each...\n";
 
         // Guarda el directorio y el filename donde se volcara el shared memory en disco

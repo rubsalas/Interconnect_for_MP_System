@@ -24,8 +24,6 @@ Message PE::convert_to_message(int instruction_index) {
     uint8_t opcode = (instr >> 41) & 0b11;
     msg.set_src_id((instr >> 36) & 0b11111);
 
-    std::cout << "Opcode: " << static_cast<uint8_t>(opcode) << '\n';
-
     switch (opcode) {
         case 0b00: // WRITE_MEM
             msg.set_operation(Operation::WRITE_MEM);

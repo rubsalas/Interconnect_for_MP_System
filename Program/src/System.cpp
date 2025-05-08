@@ -11,8 +11,8 @@
 System::System(int num_pes, ArbitScheme scheme)
     : total_pes_(num_pes), scheme_(scheme) {
     pes_.reserve(total_pes_);
-    std::cout << "\n[System] Created with " << total_pes_ << " PEs and scheme "
-              << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << "\n";   
+    std::cout << "\n[System] Created with " << total_pes_ << " PEs and "
+              << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << " scheme.\n";   
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -27,7 +27,7 @@ void System::initialize() {
     std::cout << "\n[System] Initializing " << total_pes_ << " PEs...\n";
     initialize_pes();
 
-    std::cout << "\n[System] Setting up Local Cache for every PE...\n";
+    std::cout << "\n[System] Setting up Local Cache for " << total_pes_ << " PEs...\n";
     initialize_caches();
 
     std::cout << "\n[System] Setting up Shared Memory...\n";
@@ -79,9 +79,6 @@ void System::initialize_pes() {
 }
 
 void System::initialize_caches() {
-    std::cout << "[System] Initializing local caches for " 
-              << total_pes_ << " PEs...\n";
-
     caches_.clear();
     caches_.reserve(total_pes_);
     for (int i = 0; i < total_pes_; ++i) {
@@ -100,6 +97,16 @@ void System::initialize_shared_memory() {
 
 /* ----------------------------------------- Execution ----------------------------------------- */
 
+void System::step() {
+    {
+        // Bloqueamos el mutex solo el tiempo de incrementar
+        std::lock_guard<std::mutex> lk(step_mtx_);
+        ++current_step_;
+    }
+    // Despertamos a todos: cada hilo que esté esperando en step_cv_
+    step_cv_.notify_all();
+}
+
 void System::run() {
 
     // 1) Lanzar hilos para cada PE
@@ -110,10 +117,21 @@ void System::run() {
     // 2) Lanzar hilo del Interconnect
     start_interconnect_thread();
 
-    // 3) Esperar a que todos los PEs terminen
+    // 3) Bucle de stepping: esperar Enter y avanzar un ciclo
+    std::string line;
+    while (!all_pes_finished() && interconnect_->get_state() != ICState::FINISHED) {
+        // Pedir al usuario que avance
+        std::cout << "\nPress [Enter] to advance one cycle...";
+        std::getline(std::cin, line);
+
+        // Disparar un nuevo paso
+        step();
+    }
+
+    // 4) Esperar a que todos los PEs terminen
     join_pe_threads();
 
-    // 4) Esperar a que el Interconnect termine
+    // 5) Esperar a que el Interconnect termine
     join_interconnect_thread();
 }
 
@@ -139,17 +157,26 @@ void System::start_pe_thread(int pe_id) {
 }
 
 void System::pe_execution_cycle(int pe_id) {
+
+    /**/
+    int last_step = 0;
+
     // 0.1) Referencia al PE correspondiente
     PE& pe = pes_.at(pe_id);
 
     // 0.2) Referencia al Cache correspondiente al PE
     LocalCache& cache = caches_.at(pe_id);
 
-    // 0.2) Mensaje de arranque del hilo para este PE
+    // 0.3) Se obtiene la cantidad de instrucciones por ejecutar
+    size_t total_instr = pe.instruction_memory_.size();
+
+    // 0.4) Mensaje de arranque del hilo para este PE
     std::cout << "[PE EXE] Thread started for PE " << pe.get_id()
-          << ", QoS=0x" << std::hex << int(pe.get_qos())
-          << std::dec << ", state=" << pe.state_to_string()
-          << "\n";
+              << ", QoS=0x" << std::hex << int(pe.get_qos())
+              << std::dec
+              << ", state=" << pe.state_to_string()
+              << ", instr_count=" << total_instr
+              << "\n";
 
     // 0.3) Mostrar instrucciones por correr
     //std::cout << "[PE Worker] Showing instructions that will be executed by PE " << pe.get_id() << "\n" ;
@@ -158,14 +185,35 @@ void System::pe_execution_cycle(int pe_id) {
     /* Ciclo de ejecucion correra hasta que el estado del PE llegue a FINISHED */
     while (pe.get_state() != PEState::FINISHED) {
 
+        // —————————— 1) STEPPING ——————————
+        // Cada hilo se suspende aquí hasta que System::step() incremente current_step_
+
+        // 0) Esperamos a que current_step_ supere el último valor procesado
+        {
+            std::unique_lock<std::mutex> lk(step_mtx_);
+            step_cv_.wait(lk, [&]{ return current_step_ > last_step; });
+        }
+        // Actualizamos el tracker local
+        last_step = current_step_;
+
+        // —————— 2) FINISHED POR PC FUERA DE RANGO ——————
+        // Si el PC ya no apunta a ninguna instrucción válida, terminamos
+        if (pe.get_pc() >= total_instr) {
+            std::cout << "[PE " << pe_id 
+                      << "] PC (" << pe.get_pc() 
+                      << ") >= total_instr (" << total_instr 
+                      << "), cambiando a FINISHED.\n";
+            pe.set_state(PEState::FINISHED);
+            break;
+        }
+
         /* Cuando el PE este IDLE puede obtener una nueva instruccion*/
         if (pe.get_state() == PEState::IDLE) {
 
+            // —————— 3) FETCH: Obtenemos la instrucción actual ——————
             std::cout << "[PE " << pe.get_id() << "] State=IDLE. Getting new instruction...\n";
 
-            // 1) Cambiar el estado del PE a RUNNING ya que se pondrá a correr
-            pe.set_state(PEState::RUNNING);
-
+            // —————— 4) DECODE: La convertimos a Message ——————
             /* PE manda a convertir la instruccion del Instruction Memory,
             ubicada en el PC actual, a Message */
             Message actual_pe_message = pe.convert_to_message(pe.get_pc());
@@ -174,17 +222,21 @@ void System::pe_execution_cycle(int pe_id) {
             // 4) Almacenamos el mensaje en el PE (para debug o uso interno)
             pe.set_actual_message(actual_pe_message);
 
+            // Cambiamos el estado a RUNNING, porque ya tenemos la petición lista
+            pe.set_state(PEState::RUNNING);
+
             // Imprime ID del PE y el contenido formateado del mensaje
             /*std::cout << "  PE " << pe.get_id() << ": "
                     << actual_pe_message.to_string() << "\n";*/
 
             /* Se revisará si ya llegó a la ultima instruccion, si no continua el ciclo */
             // 4) Si la operación es END, terminamos el bucle de ejecución de este PE
-            if (pe.get_actual_message().get_operation() == Operation::END) {
-                std::cout << "[PE " << pe_id << "] END instruction encountered, stopping execution...\n";
-                break;
-            }
+            // if (pe.get_actual_message().get_operation() == Operation::END) {
+            //     std::cout << "[PE " << pe_id << "] END instruction encountered, stopping execution...\n";
+            //     break;
+            // }
 
+            // —————— 5) (Opcional) Si fuera WRITE_MEM, leer cache ——————
             /* Si es WRITE_MEM se trae el dato de Cache */
             if (pe.get_actual_message().get_operation() == Operation::WRITE_MEM) {
                 // 1) Avisamos por consola que se va a leer del cache
@@ -203,23 +255,40 @@ void System::pe_execution_cycle(int pe_id) {
                 std::cout << "[PE " << pe.get_id() << "] Cache reading complete.\n";
             }
 
-            // 5) Enviamos la petición al Interconnect
+            // —————— 6) ISSUE: Enviamos el mensaje al Interconnect ——————
             std::cout << "[PE EXE] Sending message to Interconnect from PE " 
                     << pe.get_id() << "...\n";
             interconnect_->push_message(pe.get_actual_message());
 
             // 6) Cambiar el estado del PE a STALLED ya que se acaba de enviar la instruccion a ejecutar
             pe.set_state(PEState::STALLED);
-
             // 7) Cambiar el estado de respuesta del PE a WAITING ya que puede ahora esperar una respuesta
             pe.set_response_state(PEResponseState::WAITING);
 
             /* TODO: Revisar si hay alguna respuesta por venir */
+            // —————— 7) (Pendiente) Esperar y procesar respuesta… ——————
+            // Aquí podrías hacer:
+            //   while (!interconnect_->has_response(pe_id)) std::this_thread::yield();
+            //   Message resp = interconnect_->get_response(pe_id);
+            //   pe.handle_response(resp);
+            //   pe.set_response_state(PEResponseState::COMPLETED);
+
+            // —————— 8) ADVANCE PC y volver a IDLE ——————
+            pe.pc_plus_4();
+
+            // TODO: Revisar esto porque puede quedar en Stalled si no se resuleve la respuesta
+            pe.set_state(PEState::IDLE);
+
+            // Debug: mostramos nuevo PC
+            std::cout << "[PE " << pe_id 
+                    << "] Avanzando PC a " << pe.get_pc() 
+                    << ", estado IDLE\n";
+
         }
 
         // FINISH TEST
         // Pasa el PE a FINISHED para terminar el ciclo
-        pe.set_state(PEState::FINISHED);
+        // pe.set_state(PEState::FINISHED);
     }
 
     // TESTING
@@ -254,53 +323,70 @@ void System::start_interconnect_thread() {
 void System::interconnect_execution_cycle() {
     std::cout << "[System] Interconnect Execution Cycle (thread) starting...\n";
 
-    // Aquí iría tu bucle del Interconnect:
-    std::cout << "[System] Interconnect thread debug print test.\n";
-    interconnect_->debug_print();
+    /* Tracker local de pasos */
+    int last_step = 0;
 
     /* Ciclo de ejecucion correra hasta que el estado del PE llegue a FINISHED */
     while (interconnect_->get_state() != ICState::FINISHED) {
 
-        // 1) Si no hay nada en la cola…
-        if (interconnect_->get_in_queue().empty()) {
-            interconnect_->set_state(ICState::IDLE);
-            return;
+        // —————————— 1) STEPPING ——————————
+        // Cada hilo se suspende aquí hasta que System::step() incremente current_step_
+
+        // 0) Esperamos a que current_step_ supere el último valor procesado
+        {
+            std::unique_lock<std::mutex> lk(step_mtx_);
+            step_cv_.wait(lk, [&]{ return current_step_ > last_step; });
+        }
+        // Actualizamos el tracker local
+        last_step = current_step_;
+
+        // ———————— 2) CHEQUEO DE FIN ————————
+        // Si todos los PEs terminaron y NO hay mensajes en ninguna cola:
+        // if (all_pes_finished() && interconnect_->all_queues_empty()) {
+        
+        /* TESTING: POR AHORA SOLO SE REVISA SI ESTÁ EMPTY IN_QUEUE (!!!)*/
+        if (all_pes_finished() && interconnect_->in_queue_empty()) {
+            std::cout << "[Interconnect] All work done, switching to FINISHED.\n";
+            interconnect_->set_state(ICState::FINISHED);
+            break;
         }
 
-        // 2) Empezamos a recibir/arbitrar
-        interconnect_->set_state(ICState::RECEIVING);
-        // … bloqueamos mutex, etc. …
+        // ———————— 3) IDLE vs PROCESSING ————————
+        /* Si no hay mensajes en los queues pero los PEs no han terminado, stay IDLE*/
+        if (interconnect_->all_queues_empty()) {
+            // No hay peticiones: permanecemos IDLE
+            interconnect_->set_state(ICState::IDLE);
+            continue;  // esperamos el próximo step
+        }
 
+        // Hay mensajes: pasamos a PROCESSING
         interconnect_->set_state(ICState::PROCESSING);
-        /* extrae el siguiente Message de la cola ordenada de in_queue */
-        Message next_msg = interconnect_->pop_next();
-        /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion*/
-        interconnect_->push_mid_processing(next_msg);
 
-        // Imprime el mid_processing_queue para Testing
-        std::cout << "\n[System Test] Dumping Interconnect mid_processing_queue:\n";
+
+        // ———————— 4) PROCESAR UNA PETICIÓN ————————
+        if (!interconnect_->in_queue_empty()) {
+            /* Si hay Messages en in_queue, cada ciclo se pasa la primera instruccion a mid_processing */
+            /* Extrae el siguiente Message de in_queue para finalizar su espera por procesamiento */
+            Message next_msg = interconnect_->pop_next();
+            /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
+            interconnect_->push_mid_processing(next_msg);
+            // TODO: Calcular su latencia y asignarla (!)
+        }
+
+        // TESTING: Imprime el mid_processing_queue
+        std::cout << "[System Test] Dumping Interconnect mid_processing_queue:\n";
         interconnect_->debug_print_mid_processing_queue();
 
-        //set_state(ICState::SENDING);
-        // … despachamos msg a su cola de salida …
-        // interconnect_->
 
-        // 3) Después de enviar, volvemos a IDLE o repetimos
-        interconnect_->set_state(interconnect_->get_in_queue().empty()
-                                                ? ICState::IDLE : ICState::RECEIVING);
+        // TODO: Revisar si hay mensajes en mid_processing_queue
 
-        /* Revisa la condicion de parada */
-        // 1) Todos los PEs terminaron?
-        if (all_pes_finished()
-            // 2) No hay mensajes esperando en la cola de entrada?
-            && interconnect_->in_queue_empty()
-            // 3) Ni en la cola intermedia de latencia?
-            && interconnect_->mid_processing_empty())
-            // 4) TODO: faltaria out_queue
-        {
-            interconnect_->set_state(ICState::FINISHED);  // condición de parada cumplida
-        }
 
+        // TODO: Revisar si hay mensajes en out_queue
+
+
+        // ———————— 5) VOLVER A IDLE ————————
+        // Después de mover un mensaje, retomamos IDLE hasta el próximo step
+        interconnect_->set_state(ICState::IDLE);
     }
 
     std::cout << "[System] Interconnect Execution Cycle (thread) ending...\n";

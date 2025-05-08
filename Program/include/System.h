@@ -3,6 +3,9 @@
 #include <vector>
 #include <memory>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include "components/PE.h"
 #include "components/Interconnect.h"
 #include "components/Local_Cache.h"
@@ -57,6 +60,13 @@ private:
     std::vector<LocalCache>         caches_;                /**< Caches Locales L1 para cada PE. */
     std::unique_ptr<SharedMemory>   shared_memory_;         /**< Interconnect para enrutar mensajes. */
 
+    // --------------------------------------------------
+    // Stepping control
+    // --------------------------------------------------
+    std::mutex                      step_mtx_;              /**< Protege current_step_. */
+    std::condition_variable         step_cv_;               /**< Despierta hilos en cada step. */
+    int                             current_step_{0};       /**< Contador de pasos completados. */
+
     std::vector<std::thread>        pe_threads_;            /**< Hilos que ejecutan cada PE. */
     std::thread                     interconnect_thread_;   /**< Hilo para el Interconnect. */
 
@@ -68,6 +78,11 @@ private:
     void initialize_caches();
     /** @brief Inicializa la memoria compartida del sistema. */
     void initialize_shared_memory();
+
+    /**
+     * @brief Incrementa current_step_ y despierta a todos los hilos bloqueados.
+     */
+    void step();
 
 /* ------------------------------------ */
 /*                                      */

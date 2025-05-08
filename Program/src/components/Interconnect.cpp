@@ -17,6 +17,16 @@ void Interconnect::tick() {
 
 /* ------------------------------------- Message Handling -------------------------------------- */
 
+bool Interconnect::all_queues_empty() const {
+    // 1) Bloquear ambas colas para chequeo consistente
+    std::lock_guard<std::mutex> lock_in(in_queue_mtx_);
+    std::lock_guard<std::mutex> lock_mid(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock_out(out_queue_mtx_);
+
+    // 2) Comprobar que todas estén vacías
+    return in_queue_.empty() && mid_processing_queue_.empty(); // && out_queue_.empty();
+}
+
 /* ------------------------------------ */
 /*                                      */
 /*               in_queue               */
@@ -43,7 +53,7 @@ void Interconnect::push_message(const Message& m) {
         in_queue_.insert(it, m);
     }
 
-    std::cout << "[Interconnect] Safely queued message: "
+    std::cout << "[Interconnect] Safely queued new message: "
               << m.to_string() << "\n";
 }
 
