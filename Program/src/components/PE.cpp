@@ -98,12 +98,17 @@ void PE::set_actual_instruction(uint64_t instr) {
     actual_instruction_ = instr;
 }
 
-void PE::set_actual_message(const Message& msg) {
-    actual_message_ = msg;
+// non-const overload
+Message& PE::get_actual_message() {
+    return actual_message_;
 }
 
 const Message& PE::get_actual_message() const {
     return actual_message_;
+}
+
+void PE::set_actual_message(const Message& msg) {
+    actual_message_ = msg;
 }
 
 /* --------------------------------------------------------------------------------------------- */

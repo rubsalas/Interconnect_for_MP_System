@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <charconv>    // <-- para std::from_chars
+#include <charconv>
 
 namespace fs = std::filesystem;
 
@@ -27,6 +27,8 @@ LocalCache::LocalCache(int id)
     // Inicializar Cache
     initialize();
 }
+
+/* ---------------------------------------- Initializing --------------------------------------- */
 
 void LocalCache::initialize() {
     // Se llena con datos aleatorios
@@ -88,61 +90,15 @@ void LocalCache::dump_to_text_file() const {
     inv_file.close();
 }
 
-/* ---------------------------------------- Testing -------------------------------------------- */
+/* --------------------------------------------------------------------------------------------- */
 
-void LocalCache::read_test(uint32_t start_line, uint32_t num_lines) const {
-    // Verificar que el rango [start_line, start_line + num_lines) sea válido
-    std::cout << "[LocalCache] PE " << id_
-              << ": reading lines " << start_line
-              << " to " << (start_line + num_lines - 1)
-              << "\n";
-    if (start_line >= BLOCKS || start_line + num_lines > BLOCKS) {
-        throw std::out_of_range(
-            "LocalCache::read: rango fuera de límites");
-    }
+/* --------------------------------------- Data Handling --------------------------------------- */ 
 
-
-    // Para cada línea solicitada…
-    /*for (uint32_t offset = 0; offset < num_lines; ++offset) {
-        uint32_t line = start_line + offset;
-
-        // Imprimir índice de línea
-        std::cout << "  Line " << std::setw(3) << line << ":";
-
-        // Cada byte de la línea en hexadecimal con dos dígitos
-        for (uint8_t byte : cache_data[line]) {
-            std::cout << " 0x"
-                      << std::hex << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(byte);
-        }
-
-        // Restaurar formato y terminar línea
-        std::cout << std::dec
-                  << std::setfill(' ')
-                  << "\n";
-    }*/
-
-    std::cout << std::endl;
-}
-
-// std::array<uint8_t, LocalCache::BLOCK_SIZE>
-
-// LocalCache::get_cache_line(uint32_t line_index) const {
-//     if (line_index >= LocalCache::BLOCKS) {
-//         throw std::out_of_range(
-//             "LocalCache::get_cache_line: índice de línea fuera de rango"
-//         );
-//     }
-//     return cache_data[line_index];
-
-// }
-
-std::vector<std::vector<uint8_t>>
-LocalCache::read_cache_from_file(uint32_t id,
-                                 uint32_t start_line,
-                                 uint32_t num_lines) {
+std::vector<std::vector<uint8_t>> LocalCache::read_cache_from_file(uint32_t id,
+                                                                    uint32_t start_line,
+                                                                    uint32_t num_lines) {
     // 1) Abrir el fichero
-    std::string filename = "../config/caches/cache_" + std::to_string(id) + ".txt";
+    std::string filename = "config/caches/cache_" + std::to_string(id) + ".txt";
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("No se pudo abrir el archivo " + filename);
@@ -232,58 +188,57 @@ LocalCache::read_cache_from_file(uint32_t id,
     return result;
 }
 
-void LocalCache::write_cache_lines(uint32_t id,
-    uint32_t start_line,
-    const std::vector<std::vector<uint8_t>>& lines) {
-// 1) Ruta al fichero
-std::string filename = "../config/caches/cache_" + std::to_string(id) + ".txt";
+void LocalCache::write_cache_lines(uint32_t id, uint32_t start_line,
+                                    const std::vector<std::vector<uint8_t>>& lines) {
+    // 1) Ruta al fichero
+    std::string filename = "config/caches/cache_" + std::to_string(id) + ".txt";
 
-// 2) Leer todo el fichero en memoria
-std::ifstream infile(filename);
-if (!infile.is_open()) {
-throw std::runtime_error("No se pudo abrir el archivo " + filename);
-}
-std::vector<std::string> file_lines;
-std::string line;
-while (std::getline(infile, line)) {
-file_lines.push_back(line);
-}
-infile.close();
+    // 2) Leer todo el fichero en memoria
+    std::ifstream infile(filename);
+    if (!infile.is_open()) {
+        throw std::runtime_error("No se pudo abrir el archivo " + filename);
+    }
+    std::vector<std::string> file_lines;
+    std::string line;
+    while (std::getline(infile, line)) {
+        file_lines.push_back(line);
+    }
+    infile.close();
 
-// 3) Validar rango
-if (start_line >= file_lines.size() ||
-start_line + lines.size() > file_lines.size()) {
-throw std::out_of_range(
-"LocalCache::write_cache_lines: líneas fuera de rango"
-);
-}
+    // 3) Validar rango
+    if (start_line >= file_lines.size() ||
+        start_line + lines.size() > file_lines.size()) {
+        throw std::out_of_range(
+        "LocalCache::write_cache_lines: líneas fuera de rango"
+        );
+    }
 
-// 4) Reemplazar cada línea por la nueva
-for (size_t i = 0; i < lines.size(); ++i) {
-const auto& bytes = lines[i];
-if (bytes.size() != BLOCK_SIZE) {
-throw std::invalid_argument(
-"LocalCache::write_cache_lines: cada línea debe tener " +
-std::to_string(BLOCK_SIZE) + " bytes"
-);
-}
-std::ostringstream oss;
-for (uint8_t b : bytes) {
-oss << std::hex << std::setw(2) << std::setfill('0')
-<< static_cast<int>(b);
-}
-file_lines[start_line + i] = oss.str();
-}
+    // 4) Reemplazar cada línea por la nueva
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const auto& bytes = lines[i];
+        if (bytes.size() != BLOCK_SIZE) {
+            throw std::invalid_argument(
+            "LocalCache::write_cache_lines: cada línea debe tener " +
+            std::to_string(BLOCK_SIZE) + " bytes"
+            );
+        }
+        std::ostringstream oss;
+        for (uint8_t b : bytes) {
+            oss << std::hex << std::setw(2) << std::setfill('0')
+            << static_cast<int>(b);
+        }
+        file_lines[start_line + i] = oss.str();
+    }
 
-// 5) Volcar de nuevo al disco
-std::ofstream outfile(filename, std::ios::trunc);
-if (!outfile.is_open()) {
-throw std::runtime_error("No se pudo escribir en el archivo " + filename);
-}
-for (const auto& l : file_lines) {
-outfile << l << "\n";
-}
-outfile.close();
+    // 5) Volcar de nuevo al disco
+    std::ofstream outfile(filename, std::ios::trunc);
+    if (!outfile.is_open()) {
+        throw std::runtime_error("No se pudo escribir en el archivo " + filename);
+    }
+    for (const auto& l : file_lines) {
+        outfile << l << "\n";
+    }
+    outfile.close();
 }
 
 void LocalCache::invalidate_line(uint32_t line_index, int pe_id) {
@@ -324,3 +279,43 @@ void LocalCache::invalidate_line(uint32_t line_index, int pe_id) {
 
     std::cout << "[LocalCache] Línea " << line_index << " invalidada exitosamente.\n";
 }
+
+/* --------------------------------------------------------------------------------------------- */
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+void LocalCache::read_test(uint32_t start_line, uint32_t num_lines) const {
+    // Verificar que el rango [start_line, start_line + num_lines) sea válido
+    std::cout << "[LocalCache] PE " << id_
+              << ": reading lines " << start_line
+              << " to " << (start_line + num_lines - 1)
+              << "\n";
+    if (start_line >= BLOCKS || start_line + num_lines > BLOCKS) {
+        throw std::out_of_range(
+            "LocalCache::read: rango fuera de límites");
+    }
+
+    // Para cada línea solicitada…
+    /*for (uint32_t offset = 0; offset < num_lines; ++offset) {
+        uint32_t line = start_line + offset;
+
+        // Imprimir índice de línea
+        std::cout << "  Line " << std::setw(3) << line << ":";
+
+        // Cada byte de la línea en hexadecimal con dos dígitos
+        for (uint8_t byte : cache_data[line]) {
+            std::cout << " 0x"
+                      << std::hex << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(byte);
+        }
+
+        // Restaurar formato y terminar línea
+        std::cout << std::dec
+                  << std::setfill(' ')
+                  << "\n";
+    }*/
+
+    std::cout << std::endl;
+}
+
+/* --------------------------------------------------------------------------------------------- */
