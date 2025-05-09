@@ -13,8 +13,8 @@ SharedMemory::SharedMemory()
               << MEMORY_SIZE << " words of 32 bits each...\n";
 
         // Guarda el directorio y el filename donde se volcara el shared memory en disco
-        dump_path_txt = "../config/shared_memory/shared_memory.txt";
-        dump_path_bin = "../config/shared_memory/shared_memory.bin";
+        dump_path_txt = "config/shared_memory/shared_memory.txt";
+        dump_path_bin = "config/shared_memory/shared_memory.bin";
 
         // Inicializar Shared Memory
         initialize();
@@ -81,7 +81,7 @@ void SharedMemory::dump_to_binary_file() const {
 
 void SharedMemory::dump_to_text_file() const {
     // Asegurar que la carpeta existe
-    fs::path dir = "../config/shared_memory";
+    fs::path dir = "config/shared_memory";
     if (fs::exists(dir)) {
         if (!fs::is_directory(dir)) {
             throw std::runtime_error("Error: 'shared_memory' existe pero no es una carpeta.");

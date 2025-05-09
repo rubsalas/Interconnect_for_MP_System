@@ -171,7 +171,7 @@ void System::pe_execution_cycle(int pe_id) {
     size_t total_instr = pe.instruction_memory_.size();
 
     // 0.4) Mensaje de arranque del hilo para este PE
-    std::cout << "[PE EXE] Thread started for PE " << pe.get_id()
+    std::cout << "[PE " << pe.get_id() << "] Thread starting "
               << ", QoS=0x" << std::hex << int(pe.get_qos())
               << std::dec
               << ", state=" << pe.state_to_string()
@@ -207,7 +207,7 @@ void System::pe_execution_cycle(int pe_id) {
             break;
         }
 
-        /* Cuando el PE este IDLE puede obtener una nueva instruccion*/
+        /* Cuando el PE este IDLE puede obtener una nueva instruccion */
         if (pe.get_state() == PEState::IDLE) {
 
             // —————— 3) FETCH: Obtenemos la instrucción actual ——————
@@ -215,10 +215,11 @@ void System::pe_execution_cycle(int pe_id) {
 
             // —————— 4) DECODE: La convertimos a Message ——————
             /* PE manda a convertir la instruccion del Instruction Memory,
-            ubicada en el PC actual, a Message */
+               ubicada en el PC actual, a Message */
             Message actual_pe_message = pe.convert_to_message(pe.get_pc());
 
-            /* PE dejará el Message recien creado como el actual a ejecutar y/o enviar a Interconnect */
+            /* PE dejará el Message recien creado como el actual a ejecutar
+               luego de enviar a Interconnect */
             // 4) Almacenamos el mensaje en el PE (para debug o uso interno)
             pe.set_actual_message(actual_pe_message);
 
@@ -229,35 +230,38 @@ void System::pe_execution_cycle(int pe_id) {
             /*std::cout << "  PE " << pe.get_id() << ": "
                     << actual_pe_message.to_string() << "\n";*/
 
-            /* Se revisará si ya llegó a la ultima instruccion, si no continua el ciclo */
-            // 4) Si la operación es END, terminamos el bucle de ejecución de este PE
-            // if (pe.get_actual_message().get_operation() == Operation::END) {
-            //     std::cout << "[PE " << pe_id << "] END instruction encountered, stopping execution...\n";
-            //     break;
-            // }
-
-            // —————— 5) (Opcional) Si fuera WRITE_MEM, leer cache ——————
+            // —————— 5) Si es WRITE_MEM, leer cache ——————
             /* Si es WRITE_MEM se trae el dato de Cache */
             if (pe.get_actual_message().get_operation() == Operation::WRITE_MEM) {
-                // 1) Avisamos por consola que se va a leer del cache
                 std::cout << "[PE " << pe.get_id() << "] WRITE_MEM detected – reading from cache:\n";
 
-                /* TODO: */
                 // 2) Invocamos al método de LocalCache que simula la lectura
-                cache.read_test(pe.get_actual_message().get_start_line(),
-                                pe.get_actual_message().get_num_lines());
+                /*cache.read_test(pe.get_actual_message().get_start_line(),
+                                pe.get_actual_message().get_num_lines());*/
 
-                /* TODO: Confirmacion */
+                // 2) Read the cache lines from disk
+                uint32_t start = pe.get_actual_message().get_start_line();
+                uint32_t count = pe.get_actual_message().get_num_lines();
 
-                /* TODO: Enviar a Interconnect (Ingresarlo al mensaje antes ?) */
+                std::vector<std::vector<uint8_t>> blocks;
+                try {
+                    blocks = cache.read_cache_from_file(pe.get_id(), start, count);
+                } catch (const std::exception& e) {
+                    std::cerr << "[PE " << pe_id 
+                            << "] Error reading cache lines: " << e.what() << "\n";
+                }
 
-                // 3) Aviso de que terminó la lectura
-                std::cout << "[PE " << pe.get_id() << "] Cache reading complete.\n";
+                // 3) Stash the blocks into the Message payload
+                pe.get_actual_message().set_data(blocks);
+
+                // (Optional) debug print to verify
+                std::cout << "[PE " << pe_id 
+                        << "] Cached data attached to message (" 
+                        << blocks.size() << " lines)\n";
             }
 
             // —————— 6) ISSUE: Enviamos el mensaje al Interconnect ——————
-            std::cout << "[PE EXE] Sending message to Interconnect from PE " 
-                    << pe.get_id() << "...\n";
+            std::cout << "[PE " << pe.get_id() << "] Sending message to Interconnect...\n";
             interconnect_->push_message(pe.get_actual_message());
 
             // 6) Cambiar el estado del PE a STALLED ya que se acaba de enviar la instruccion a ejecutar
@@ -286,13 +290,10 @@ void System::pe_execution_cycle(int pe_id) {
 
         }
 
-        // FINISH TEST
-        // Pasa el PE a FINISHED para terminar el ciclo
-        // pe.set_state(PEState::FINISHED);
     }
 
     // Fin del thread
-    std::cout << "\n[PE EXE] Thread ending for PE " << pe.get_id() << "\n";
+    std::cout << "\n[PE " << pe.get_id() << " Thread ending...\n";
 }
 
 void System::join_pe_threads() {

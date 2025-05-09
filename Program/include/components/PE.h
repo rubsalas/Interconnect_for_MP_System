@@ -87,6 +87,8 @@ public:
     /** @brief Establece la instrucción de 64 bits actual. */
     void set_actual_instruction(uint64_t instr);
 
+    /** @brief Devuelve una referencia mutable al mensaje actual. */
+    Message& get_actual_message();
     /**
      * @brief Obtiene el mensaje actual de depuración.
      * @return Referencia constante al Message guardado internamente.
@@ -100,7 +102,7 @@ public:
 
 /* --------------------------------------------------------------------------------------------- */
 
-/* ---------------------------------------- Testing -------------------------------------------- */
+/* ------------------------------------------ Testing ------------------------------------------ */
 
     /**
      * @brief Imprime en consola el estado interno del PE para depuración.

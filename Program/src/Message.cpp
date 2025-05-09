@@ -11,7 +11,7 @@ Message::Message(Operation operation,
                  uint32_t start_line,
                  uint32_t cache_line,
                  uint32_t status,
-                 std::vector<uint32_t> data)
+                 std::vector<std::vector<uint8_t>> data)
     : operation_(operation), src_id_(src), dest_id_(dst), address_(addr), qos_(qos),
       size_(size), num_lines_(num_lines), start_line_(start_line),
       cache_line_(cache_line), status_(status), data_(std::move(data)) {}
@@ -28,7 +28,10 @@ uint32_t Message::get_num_lines() const { return num_lines_; }
 uint32_t Message::get_start_line() const { return start_line_; }
 uint32_t Message::get_cache_line() const { return cache_line_; }
 uint32_t Message::get_status() const { return status_; }
-const std::vector<uint32_t>& Message::get_data() const { return data_; }
+
+const std::vector<std::vector<uint8_t>>& Message::get_data() const {
+    return data_;
+}
 
 void Message::set_operation(Operation op) { operation_ = op; }
 void Message::set_src_id(int id) { src_id_ = id; }
@@ -40,7 +43,10 @@ void Message::set_num_lines(uint32_t n) { num_lines_ = n; }
 void Message::set_start_line(uint32_t sl) { start_line_ = sl; }
 void Message::set_cache_line(uint32_t cl) { cache_line_ = cl; }
 void Message::set_status(uint32_t st) { status_ = st; }
-void Message::set_data(const std::vector<uint32_t>& d) { data_ = d; }
+
+void Message::set_data(std::vector<std::vector<uint8_t>>& data) {
+    data_ = data;
+}
 
 /* --------------------------------------------------------------------------------------------- */
 

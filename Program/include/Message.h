@@ -54,7 +54,7 @@ public:
             uint32_t start_line = 0,    // START_CACHE_LINE
             uint32_t cache_line = 0,    // CACHE_LINE
             uint32_t status = 0,        // STATUS
-            std::vector<uint32_t> data = {});
+            std::vector<std::vector<uint8_t>>data = {});
 
 /* ----------------------------------- Getters & Setters --------------------------------------- */
 
@@ -69,8 +69,14 @@ public:
     uint32_t get_start_line() const;
     uint32_t get_cache_line() const;
     uint32_t get_status() const;
-    const std::vector<uint32_t>& get_data() const;
 
+    /**
+     * @brief Devuelve el bloque de datos (payload) asociado al mensaje.
+     * 
+     * @return Referencia constante al vector de líneas de bytes.
+     */
+    const std::vector<std::vector<uint8_t>>& get_data() const;
+    
     // Setters
     void set_operation(Operation op);
     void set_src_id(int id);
@@ -82,7 +88,17 @@ public:
     void set_start_line(uint32_t sl);
     void set_cache_line(uint32_t cl);
     void set_status(uint32_t st);
-    void set_data(const std::vector<uint32_t>& d);
+
+    /**
+     * @brief Establece el bloque de datos (payload) que acompaña al mensaje.
+     * 
+     * Normalmente se usa para llevar los bytes leídos o a escribir
+     * en el cache/Memory.
+     * 
+     * @param data Bloque de datos como vector de líneas, donde cada línea
+     *             es un vector de bytes.
+     */
+    void set_data(std::vector<std::vector<uint8_t>>& data);
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -128,7 +144,7 @@ private:
     uint32_t start_line_{0};        /**< Primera línea de caché. */
     uint32_t cache_line_{0};        /**< Línea de caché específica. */
     uint32_t status_{0};            /**< Código de estado de la operación. */
-    std::vector<uint32_t> data_;    /**< Payload de datos. */
+    std::vector<std::vector<uint8_t>> data_;    /**< Payload de datos. */
 
     uint32_t latency_{0};           /**< Latencia restante en ciclos. */
 };
