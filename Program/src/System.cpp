@@ -498,23 +498,43 @@ void System::interconnect_execution_cycle() {
                 // TESTING ONLY
                 write_resp.set_latency(18);
 
-                // 7) Encolamos la respuesta en out_queue_
+                // 7) Encolamos en la etapa media para simular la latencia
                 interconnect_->push_mid_processing(write_resp);
 
             } else if (next_msg.get_operation() == Operation::BROADCAST_INVALIDATE) {
-                // → Broadcast: nada va a memoria, sino a invalidar caches
-                std::cout << "[IC] BROADCAST_INVALIDATE: enviando INV_LINE a todos los PEs\n";
-                // TODO: Generar tantos mensajes INV_LINE como PEs (excepto src)
-                //       y encolarlos en out_queue_ directamente o en mid_pipeline según latencia
+                // → Broadcast: invalidar cache line en todos los PEs
+                uint32_t src_pe     = next_msg.get_src_id();
+                uint32_t qos        = next_msg.get_qos();
+                uint32_t cache_line = next_msg.get_cache_line();
 
-                // TODO: Calcular su latencia y asignarla (!)
-                // TESTING ONLY
-                next_msg.set_latency(8);
+                std::cout << "[IC] BROADCAST_INVALIDATE: enviando INV_LINE a todos los PEs (incluyendo src=" 
+                        << src_pe << ")\n";
 
-                // TODO: Ejecutar la instruccion
+                // Para cada PE creamos un INV_LINE
+                for (int pid = 0; pid < total_pes_; ++pid) {
+                    // 1) Construir el mensaje de invalidación de línea
+                    Message inv_msg(
+                        Operation::INV_LINE,  // operación
+                        /* src */ src_pe,     // PE origen del broadcast
+                        /* dst */ pid,        // destino: cada PE
+                        /* addr */ 0,         // no usamos ADDR aquí
+                        /* qos */ qos,        // heredamos el QoS original
+                        /* size */ 0,         // no aplica
+                        /* num_lines */ 0, 
+                        /* start_line */ 0,
+                        /* cache_line */ cache_line,
+                        /* status */ 0,
+                        /* data */ {}         // sin payload
+                    );
 
-                /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
-                interconnect_->push_mid_processing(next_msg);
+                    // 2) Asignar latencia de invalidación
+                    // TODO: Calcular su latencia y asignarla (!)
+                    // TESTING ONLY
+                    inv_msg.set_latency(4);
+
+                    // 3) Encolamos en la etapa media para simular la latencia
+                    interconnect_->push_mid_processing(inv_msg);
+                }
 
             } else if (next_msg.get_operation() == Operation::INV_ACK) {
                 // → Acknowledgment de invalidación: lleva de vuelta al originador
