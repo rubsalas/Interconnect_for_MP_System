@@ -76,6 +76,9 @@ public:
      * @return Referencia constante al vector de líneas de bytes.
      */
     const std::vector<std::vector<uint8_t>>& get_data() const;
+
+    /** @brief Devuelve el ID de broadcast asociado o 0 si no aplica. */
+    uint32_t get_broadcast_id() const;
     
     // Setters
     void set_operation(Operation op);
@@ -100,6 +103,9 @@ public:
      */
     void set_data(std::vector<std::vector<uint8_t>>& data);
 
+    /** @brief Asigna un ID de broadcast para correlacionar INV_LINE/INV_ACK. */
+    void set_broadcast_id(uint32_t id);
+    
 /* --------------------------------------------------------------------------------------------- */
 
 /* -------------------------------------- Latency Handler -------------------------------------- */
@@ -147,6 +153,8 @@ private:
     std::vector<std::vector<uint8_t>> data_;    /**< Payload de datos. */
 
     uint32_t latency_{0};           /**< Latencia restante en ciclos. */
+
+    uint32_t broadcast_id_{0};      /**< ID del Broadcast, si es un Message de esos. */
 };
 
 /* --------------------------------------------------------------------------------------------- */

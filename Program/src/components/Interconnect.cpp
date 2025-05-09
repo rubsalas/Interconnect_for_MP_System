@@ -9,10 +9,21 @@ Interconnect::Interconnect(int num_pes, ArbitScheme scheme)
               << " as its arbitration scheme.\n";
 }
 
-void Interconnect::tick() {
-    std::cout << "[Interconnect] tick: processing messages according to scheme "
-              << static_cast<int>(scheme_) << "\n";
-    // TODO: apply arbitration and move messages between queues
+uint32_t Interconnect::register_broadcast(int origin_pe) {
+    // 1) Conseguir un ID único
+    uint32_t bid = next_broadcast_id_.fetch_add(1, std::memory_order_relaxed);
+
+    {
+        // 2) Guardamos la info bajo mutex
+        std::lock_guard<std::mutex> lk(broadcast_mtx_);
+        pending_broadcasts_[bid] = PendingBroadcast{
+            .origin_pe    = origin_pe,
+            .pending_acks = num_pes_   // esperamos uno por cada PE
+        };
+    }
+
+    // 3) Devolvemos el ID para que System pueda asignarlo al Message
+    return bid;
 }
 
 /* ------------------------------------- Message Handling -------------------------------------- */

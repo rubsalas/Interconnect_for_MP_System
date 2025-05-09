@@ -35,7 +35,7 @@ std::string InstructionGenerator::generate_instruction(int pe_id) const {
     std::uniform_int_distribution<int> addr_dist(0, (MEM_SIZE - 1) / 4);
     std::uniform_int_distribution<int> cache_line_dist(0, CACHE_LINES - 1);
     
-    std::uniform_int_distribution<int> size_dist(1, 64);
+    std::uniform_int_distribution<int> size_dist(1, 16);
     std::uniform_int_distribution<int> qos_dist(0, MAX_QOS);
 
     std::string instruction;
@@ -56,7 +56,7 @@ std::string InstructionGenerator::generate_instruction(int pe_id) const {
         }
         case 1: { // READ_MEM
             int addr = addr_dist(rng_) * 4;
-            int size = size_dist(rng_) * 4;
+            int size = size_dist(rng_) * 16; /* Alineado con los bloques de Cache */
             int qos = qos_dist(rng_);
             instruction = "READ_MEM " + std::to_string(pe_id) + ", " +
                           std::to_string(addr) + ", " +

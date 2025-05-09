@@ -178,10 +178,6 @@ void System::pe_execution_cycle(int pe_id) {
               << ", instr_count=" << total_instr
               << "\n";
 
-    // 0.3) Mostrar instrucciones por correr
-    //std::cout << "[PE Worker] Showing instructions that will be executed by PE " << pe.get_id() << "\n" ;
-    //pe.instruction_memory_.print_instructions();
-
     /* Ciclo de ejecucion correra hasta que el estado del PE llegue a FINISHED */
     while (pe.get_state() != PEState::FINISHED) {
 
@@ -338,10 +334,8 @@ void System::interconnect_execution_cycle() {
         last_step = current_step_;
 
         // ———————— 2) CHEQUEO DE FIN ————————
-        // Si todos los PEs terminaron y NO hay mensajes en ninguna cola:
-        // if (all_pes_finished() && interconnect_->all_queues_empty()) {
-        
-        /* TESTING: POR AHORA SOLO SE REVISA SI ESTÁ EMPTY IN_QUEUE (!!!)*/
+        /* Condicion de parada */
+        // Si todos los PEs terminaron y NO hay mensajes en ninguna cola:        
         if (all_pes_finished() && interconnect_->all_queues_empty()) {
             std::cout << "[Interconnect] All work done, switching to FINISHED.\n";
             interconnect_->set_state(ICState::FINISHED);
@@ -365,29 +359,17 @@ void System::interconnect_execution_cycle() {
         // TODO: Revisar si hay mensajes en out_queue
         if (!interconnect_->out_queue_empty()) {
 
-            /* Si hay Messages en out_queue, cada ciclo que pasa se sacara
-               el primer Response hacia cada PE que haya, dependiendo del estado
+            /* TODO: Si hay Messages en out_queue, cada ciclo que pasa se sacara
+               el primer Response hacia CADA PE que haya, dependiendo del estado
                del PE. */
 
             // TESTING: Sacar Message de out_queue (por ahora se sacará el primero)
             Message response_to_PE = interconnect_->pop_out_queue_at(0);
-
         }       
 
 
         // TODO: Revisar si hay mensajes en mid_processing_queue
         if (!interconnect_->mid_processing_empty()) {
-            /* Si hay Messages en mid_processing queue, cada ciclo que pasa
-               se le tiene que ir restando un ciclo a cada latencia de cada uno*/
-
-            /* Se tiene que revisar que si algun Message llega a 0 en el latency
-               se tendría que pasar el out_queue para generar el response */
-
-            // Se borraría el Message
-
-            // Se crearía el response
-
-            // Se pasaría el response al out_queue
 
             // 1) Averiguamos cuántos mensajes había al inicio de este paso
             size_t count = interconnect_->mid_processing_size();
@@ -510,10 +492,13 @@ void System::interconnect_execution_cycle() {
                 std::cout << "[IC] BROADCAST_INVALIDATE: enviando INV_LINE a todos los PEs (incluyendo src=" 
                         << src_pe << ")\n";
 
+                /* Se obtiene un nuevo ID para este nuevo BROADCAST */
+                uint32_t bid = interconnect_->register_broadcast(src_pe);
+
                 // Para cada PE creamos un INV_LINE
                 for (int pid = 0; pid < total_pes_; ++pid) {
                     // 1) Construir el mensaje de invalidación de línea
-                    Message inv_msg(
+                    Message inv_line_msg(
                         Operation::INV_LINE,  // operación
                         /* src */ src_pe,     // PE origen del broadcast
                         /* dst */ pid,        // destino: cada PE
@@ -527,29 +512,86 @@ void System::interconnect_execution_cycle() {
                         /* data */ {}         // sin payload
                     );
 
+                    // 2) Se clava el broadcast_id en el Message para que se propague
+                    inv_line_msg.set_broadcast_id(bid);
+
                     // 2) Asignar latencia de invalidación
                     // TODO: Calcular su latencia y asignarla (!)
                     // TESTING ONLY
-                    inv_msg.set_latency(4);
+                    inv_line_msg.set_latency(8);
 
                     // 3) Encolamos en la etapa media para simular la latencia
-                    interconnect_->push_mid_processing(inv_msg);
+                    interconnect_->push_mid_processing(inv_line_msg);
                 }
 
             } else if (next_msg.get_operation() == Operation::INV_ACK) {
-                // → Acknowledgment de invalidación: lleva de vuelta al originador
+                // → Acknowledgment de invalidación: contabilizando ack para el broadcast
                 std::cout << "[IC] INV_ACK: contabilizando ack para BROADCAST\n";
-                // TODO: Llevar un contador interno; cuando llegue el último,
-                //       encolas un INV_COMPLETE al PE origen
 
-                // TODO: Calcular su latencia y asignarla (!)
-                // TESTING ONLY
-                next_msg.set_latency(4);
+                uint32_t bid    = next_msg.get_broadcast_id(); // identificador del broadcast
+                uint32_t qos    = next_msg.get_qos();
+                int      origin = -1;
+                bool     complete = false;
 
-                // TODO: Ejecutar la instruccion
+                {
+                    // 1) Protegemos el acceso al mapa de broadcasts pendientes
+                    std::lock_guard<std::mutex> lk(interconnect_->broadcast_mtx_);
+                    auto it = interconnect_->pending_broadcasts_.find(bid);
 
-                /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
-                interconnect_->push_mid_processing(next_msg);
+                    /* Si no esta fuera de rango */
+                    if (it != interconnect_->pending_broadcasts_.end()) {
+                        // 2) Restamos un ACK pendiente
+                        /* it->second da acceso al valor de PendingBroadcast, first seria su key*/
+                        it->second.pending_acks--;   // restar un ACK pendiente
+                        origin = it->second.origin_pe;  // leer quién inició el broadcast
+                        std::cout << "[IC] INV_ACK recibido para broadcast " << bid
+                                << ", faltan " << it->second.pending_acks << " ACKs\n";
+
+                        // 3) Si ya no falta ninguno, marcamos completo y borramos el registro
+                        if (it->second.pending_acks == 0) {
+                            complete = true;
+                            interconnect_->pending_broadcasts_.erase(it);
+                        }
+                    } else {
+                        std::cerr << "[IC] INV_ACK con broadcast_id inválido: " << bid << "\n";
+                    }
+                }
+
+                // TODO: Como medir esta latencia?
+                // 4) Asignamos latencia de ACK (por ejemplo, 1 ciclo)
+                // next_msg.set_latency(1);
+                // 5) Lo metemos en mid_pipeline para procesar ese ACK
+                // interconnect_->push_mid_processing(next_msg);
+
+                // 6) Si este ACK cierra el broadcast, generamos INV_COMPLETE
+                if (complete && origin >= 0) {
+                    Message inv_complete(
+                        Operation::INV_COMPLETE,
+                        /*src=*/-1,        // Interconnect
+                        /*dst=*/origin,    // PE que inició el broadcast
+                        /*addr=*/0,
+                        /*qos=*/qos,
+                        /* size */ 0,         // no aplica
+                        /* num_lines */ 0, 
+                        /* start_line */ 0,
+                        /*cache_line=*/0,
+                        /*status=*/0,
+                        /*data=*/{}
+                    );
+
+                    inv_complete.set_broadcast_id(bid);
+
+                    // 7) Asignar latencia
+                    // TODO: Calcular su latencia y asignarla (!)
+                    // TESTING ONLY
+                    inv_complete.set_latency(6);
+
+                    // 8) Encolamos en la etapa media para simular la latencia
+                    interconnect_->push_mid_processing(inv_complete);
+
+                    std::cout << "[IC] Todos los INV_ACK de broadcast " << bid
+                            << " recibidos: encolando INV_COMPLETE para PE " << origin << "\n";
+                }
 
             } else {
                 // Cualquier otro caso (p.ej. END o UNDEFINED)

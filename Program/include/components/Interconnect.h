@@ -3,6 +3,8 @@
 #include <vector>
 #include <deque>
 #include <mutex>
+#include <atomic>
+#include <unordered_map>
 #include "Message.h"
 
 /**
@@ -16,11 +18,13 @@ enum class ArbitScheme {
 
 enum class ICState {
     IDLE,           /**< No hay peticiones pendientes. */
-    //RECEIVING,      /**< Leyendo nuevas solicitudes en in_queue_. */
     PROCESSING,     /**< Decodificando la petición y preparando la acción. */
-    //MEM_ACCESS,     /**< Modelando la latencia de acceso a memoria principal. */
-    //RESPONDING,     /**< Encolando y despachando las respuestas a los PEs. */
     FINISHED        /**< No entrarán mas mensajes y se han respondido todos */
+};
+
+struct PendingBroadcast {
+    int origin_pe;       /**< Quién lanzó el broadcast */
+    int pending_acks;    /**< Cuántos ACK faltan */
 };
 
 /**
@@ -31,6 +35,11 @@ enum class ICState {
  */
 class Interconnect {
 public:
+    std::atomic<uint32_t> next_broadcast_id_{0}; /**< Para generar IDs únicos de PendingBroadcasts. */
+    // Mapa: broadcast_id → info de esa emisión
+    std::unordered_map<uint32_t, PendingBroadcast>  pending_broadcasts_;
+    mutable std::mutex                              broadcast_mtx_;
+
     /**
      * @brief Construye un Interconnect para un número de PEs y un esquema de arbitraje.
      * @param num_pes Cantidad de PEs conectados.
@@ -39,9 +48,15 @@ public:
     Interconnect(int num_pes, ArbitScheme scheme);
 
     /**
-     * @brief Avanza un "tick" de simulación: procesa colas según el arbitraje.
+     * @brief Registra un nuevo BROADCAST_INVALIDATE.
+     *
+     * Genera un broadcast_id único, guarda en pending_broadcasts_
+     * el PE origen y el conteo inicial de ACKs (igual a num_pes_).
+     *
+     * @param origin_pe Identificador del PE que origina el broadcast.
+     * @return El broadcast_id asignado.
      */
-    void tick();
+    uint32_t register_broadcast(int origin_pe);
 
 /* ------------------------------------- Message Handling -------------------------------------- */
 

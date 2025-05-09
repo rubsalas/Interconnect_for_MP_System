@@ -28,10 +28,8 @@ uint32_t Message::get_num_lines() const { return num_lines_; }
 uint32_t Message::get_start_line() const { return start_line_; }
 uint32_t Message::get_cache_line() const { return cache_line_; }
 uint32_t Message::get_status() const { return status_; }
-
-const std::vector<std::vector<uint8_t>>& Message::get_data() const {
-    return data_;
-}
+const std::vector<std::vector<uint8_t>>& Message::get_data() const { return data_; }
+uint32_t Message::get_broadcast_id() const { return broadcast_id_; }
 
 void Message::set_operation(Operation op) { operation_ = op; }
 void Message::set_src_id(int id) { src_id_ = id; }
@@ -43,10 +41,8 @@ void Message::set_num_lines(uint32_t n) { num_lines_ = n; }
 void Message::set_start_line(uint32_t sl) { start_line_ = sl; }
 void Message::set_cache_line(uint32_t cl) { cache_line_ = cl; }
 void Message::set_status(uint32_t st) { status_ = st; }
-
-void Message::set_data(std::vector<std::vector<uint8_t>>& data) {
-    data_ = data;
-}
+void Message::set_data(std::vector<std::vector<uint8_t>>& data) { data_ = data; }
+void Message::set_broadcast_id(uint32_t id) { broadcast_id_ = id; }
 
 /* --------------------------------------------------------------------------------------------- */
 
