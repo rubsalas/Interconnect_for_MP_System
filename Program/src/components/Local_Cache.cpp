@@ -20,9 +20,9 @@ LocalCache::LocalCache(int id)
               << " blocks of " << BLOCK_SIZE << " bytes each...\n";
 
     // Guarda el directorio y el filename donde se volcara el cache en disco
-    dump_path = "../config/caches/cache_" + std::to_string(id_) + ".txt";
+    dump_path = "config/caches/cache_" + std::to_string(id_) + ".txt";
 
-    inv_path = "../config/caches/inv_cache_" + std::to_string(id_) + ".txt";
+    inv_path = "config/caches/inv_cache_" + std::to_string(id_) + ".txt";
 
     // Inicializar Cache
     initialize();
@@ -52,7 +52,7 @@ void LocalCache::fill_random() {
 
 void LocalCache::dump_to_text_file() const {
     // Asegurar que la carpeta existe
-    fs::path dir = "../config/caches";
+    fs::path dir = "config/caches";
 
     if (fs::exists(dir)) {
         if (!fs::is_directory(dir)) {
@@ -243,7 +243,7 @@ void LocalCache::write_cache_lines(uint32_t id, uint32_t start_line,
 
 void LocalCache::invalidate_line(uint32_t line_index, int pe_id) {
     // Leer todas las líneas del archivo de invalidación
-    std::string inv_path = "../config/caches/inv_cache_" + std::to_string(pe_id) + ".txt";
+    std::string inv_path = "config/caches/inv_cache_" + std::to_string(pe_id) + ".txt";
     std::ifstream infile(inv_path);
     if (!infile.is_open()) {
         std::cerr << "[LocalCache] No se pudo abrir " << inv_path << " para lectura.\n";

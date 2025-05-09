@@ -107,7 +107,23 @@ public:
     static void write_cache_lines(uint32_t id, uint32_t start_line,
                                     const std::vector<std::vector<uint8_t>>& lines);
 
-    static void invalidate_line(uint32_t line_index, int pe_id);
+    /**
+     * @brief Invalida una línea específica en el archivo de estado de caché de un PE.
+     *
+     * Esta función abre el fichero de invalidación correspondiente al PE
+     * ("config/caches/inv_cache_<pe_id>.txt"), marca la línea indicada
+     * escribiendo "1" en esa posición y reescribe todo el archivo con la
+     * modificación. Sirve para reflejar que esa línea de caché ha sido invalidada.
+     *
+     * @param line_index Índice (0-based) de la línea a invalidar en el fichero.
+     * @param pe_id      Identificador del Processing Element (PE) cuyo fichero
+     *                   de invalidaciones se va a modificar.
+     *
+     * @note En caso de no poder abrir el fichero o si @p line_index está fuera
+     *       de rango, se imprime un mensaje de error por std::cerr y la función
+     *       retorna sin lanzar excepciones.
+     */
+    void invalidate_line(uint32_t line_index, int pe_id);
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -131,11 +147,6 @@ private:
     int id_;                            /**< ID del PE al que pertenece. */
     std::string dump_path;              /**< Directorio donde se volcara el cache. */
     std::string inv_path;
-    /// Número de bloques en el caché.
-    //static constexpr size_t BLOCKS = 128;
-    /// Tamaño de cada bloque en bytes.
-    // static constexpr size_t BLOCK_SIZE = 16;
-    /// Datos del caché: vector de bloques, cada uno es un array de bytes.
 
     std::vector<std::array<uint8_t, BLOCK_SIZE>> cache_data; /**< vector de bloques, cada uno es un array de bytes. */
 };
