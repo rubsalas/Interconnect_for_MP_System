@@ -76,13 +76,15 @@ public:
     static void write_cache_lines(uint32_t id, uint32_t start_line,
     const std::vector<std::vector<uint8_t>>& lines);
 
-    std::array<uint8_t, BLOCK_SIZE>
-    get_cache_line(uint32_t line_index) const;
+    static void invalidate_line(uint32_t line_index, int pe_id);
+
+    std::array<uint8_t, BLOCK_SIZE> get_cache_line(uint32_t line_index) const;
       /* --------------------------------------------------------------------------------------------- */
 
 private:
     int id_;                            /**< ID del PE al que pertenece. */
     std::string dump_path;              /**< Directorio donde se volcara el cache. */
+    std::string inv_path;
     /// Número de bloques en el caché.
     //static constexpr size_t BLOCKS = 128;
     /// Tamaño de cada bloque en bytes.

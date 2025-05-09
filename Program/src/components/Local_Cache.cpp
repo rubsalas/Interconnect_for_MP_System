@@ -20,7 +20,9 @@ LocalCache::LocalCache(int id)
               << " blocks of " << BLOCK_SIZE << " bytes each...\n";
 
     // Guarda el directorio y el filename donde se volcara el cache en disco
-    dump_path = "config/caches/cache_" + std::to_string(id_) + ".txt";
+    dump_path = "../config/caches/cache_" + std::to_string(id_) + ".txt";
+
+    inv_path = "../config/caches/inv_cache_" + std::to_string(id_) + ".txt";
 
     // Inicializar Cache
     initialize();
@@ -48,7 +50,7 @@ void LocalCache::fill_random() {
 
 void LocalCache::dump_to_text_file() const {
     // Asegurar que la carpeta existe
-    fs::path dir = "config/caches";
+    fs::path dir = "../config/caches";
 
     if (fs::exists(dir)) {
         if (!fs::is_directory(dir)) {
@@ -64,18 +66,26 @@ void LocalCache::dump_to_text_file() const {
         throw std::runtime_error("Error: No se pudo crear el archivo: " + dump_path);
     }
 
+    // Crear archivo cache_inv_<pe>.txt
+    std::ofstream inv_file(inv_path);
+    if (!inv_file.is_open()) {
+        throw std::runtime_error("Error: No se pudo crear el archivo: " + inv_path);
+    }
+
     // Cada línea es un bloque; escribimos cada byte en hexadecimal (2 dígitos)
     for (const auto& block : cache_data) {
         for (const auto& byte : block) {
             out << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<int>(byte)
-                << ' ';
+                << static_cast<int>(byte);
+               // << ' ';
         }
         // Restaurar formato decimal y relleno por defecto antes de la nueva línea
         out << std::dec << std::setfill(' ') << "\n";
+        inv_file << "0\n";
     }
 
     out.close();
+    inv_file.close();
 }
 
 /* ---------------------------------------- Testing -------------------------------------------- */
@@ -275,4 +285,42 @@ outfile << l << "\n";
 }
 outfile.close();
 }
-/* --------------------------------------------------------------------------------------------- */
+
+void LocalCache::invalidate_line(uint32_t line_index, int pe_id) {
+    // Leer todas las líneas del archivo de invalidación
+    std::string inv_path = "../config/caches/inv_cache_" + std::to_string(pe_id) + ".txt";
+    std::ifstream infile(inv_path);
+    if (!infile.is_open()) {
+        std::cerr << "[LocalCache] No se pudo abrir " << inv_path << " para lectura.\n";
+        return;
+    }
+
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(infile, line)) {
+        lines.push_back(line);
+    }
+    infile.close();
+
+    // Validar índice
+    if (line_index < 0 || static_cast<size_t>(line_index) >= lines.size()) {
+        std::cerr << "[LocalCache] Índice de línea inválido: " << line_index << "\n";
+        return;
+    }
+
+    // Cambiar la línea a "1"
+    lines[line_index] = "1";
+
+    // Reescribir el archivo completo con la línea actualizada
+    std::ofstream outfile(inv_path);
+    if (!outfile.is_open()) {
+        std::cerr << "[LocalCache] No se pudo abrir " << inv_path << " para escritura.\n";
+        return;
+    }
+
+    for (const auto& l : lines) {
+        outfile << l << "\n";
+    }
+
+    std::cout << "[LocalCache] Línea " << line_index << " invalidada exitosamente.\n";
+}
