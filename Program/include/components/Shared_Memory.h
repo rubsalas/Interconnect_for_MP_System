@@ -76,8 +76,8 @@ public:
      */
     void dump_to_text_file() const;
 
-    void write_shared_memory_lines(const std::string& hex_128bits, size_t address);
-
+    void write_shared_memory_lines(const std::vector<std::vector<uint8_t>>& blocks, size_t address);
+    
     std::vector<std::vector<std::string>> read_shared_memory(size_t address, size_t size);
 
 private:

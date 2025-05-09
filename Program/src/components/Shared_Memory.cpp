@@ -104,18 +104,8 @@ void SharedMemory::dump_to_text_file() const {
 }
 
 
-void SharedMemory::write_shared_memory_lines(const std::string& hex_128bits, size_t address) {
-    if (hex_128bits.length() != 32) {
-        std::cerr << "[SharedMemory] Error: se requieren exactamente 32 caracteres hexadecimales.\n";
-        return;
-    }
-
-    if (address % 4 != 0) {
-        std::cerr << "[SharedMemory] Error: la dirección debe estar alineada a 128 bits (múltiplo de 4).\n";
-        return;
-    }
-
-    // Leer el archivo completo
+void SharedMemory::write_shared_memory_lines(const std::vector<std::vector<uint8_t>>& blocks, size_t address) {
+    // Abrir el archivo para lectura
     std::ifstream infile(dump_path_txt);
     if (!infile) {
         std::cerr << "[SharedMemory] Error: no se pudo abrir shared_memory.txt.\n";
@@ -129,18 +119,33 @@ void SharedMemory::write_shared_memory_lines(const std::string& hex_128bits, siz
     }
     infile.close();
 
-    if (address + 4 > file_lines.size()) {
-        std::cerr << "[SharedMemory] Error: escritura fuera del rango del archivo.\n";
-        return;
+    // Escribir cada bloque (cada uno contiene 16 bytes = 4 líneas)
+    for (size_t b = 0; b < blocks.size(); ++b) {
+        const auto& block = blocks[b];
+
+        if (block.size() != 16) {
+            std::cerr << "[SharedMemory] Error: cada bloque debe tener exactamente 16 bytes.\n";
+            return;
+        }
+
+        size_t current_address = address + b * 4;
+        if (current_address + 4 > file_lines.size()) {
+            std::cerr << "[SharedMemory] Error: escritura fuera del rango del archivo en bloque " << b << ".\n";
+            return;
+        }
+
+        // Convertir cada grupo de 4 bytes a una línea de 8 dígitos hexadecimales
+        for (int i = 0; i < 4; ++i) {
+            uint32_t word = (block[i * 4] << 24) | (block[i * 4 + 1] << 16) |
+                            (block[i * 4 + 2] << 8) | block[i * 4 + 3];
+
+            std::stringstream ss;
+            ss << std::hex << std::setw(8) << std::setfill('0') << word;
+            file_lines[current_address + i] = ss.str();
+        }
     }
 
-    // Dividir en 4 segmentos de 8 caracteres (cada uno 32 bits)
-    for (int i = 0; i < 4; ++i) {
-        std::string word_hex = hex_128bits.substr(i * 8, 8);
-        file_lines[address + i] = word_hex;
-    }
-
-    // Escribir todo el archivo de nuevo
+    // Escribir de nuevo todo el archivo
     std::ofstream outfile(dump_path_txt);
     if (!outfile) {
         std::cerr << "[SharedMemory] Error: no se pudo abrir el archivo para escritura.\n";
@@ -151,7 +156,7 @@ void SharedMemory::write_shared_memory_lines(const std::string& hex_128bits, siz
         outfile << l << "\n";
     }
 
-    std::cout << "[SharedMemory] Línea de caché (128 bits) escrita correctamente en dirección " << address << ".\n";
+    std::cout << "[SharedMemory] Se escribieron " << blocks.size() << " bloque(s) de 128 bits correctamente desde dirección " << address << ".\n";
 }
 
 
