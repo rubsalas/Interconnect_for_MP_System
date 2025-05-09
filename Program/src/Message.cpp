@@ -44,6 +44,27 @@ void Message::set_data(const std::vector<uint32_t>& d) { data_ = d; }
 
 /* --------------------------------------------------------------------------------------------- */
 
+/* -------------------------------------- Latency Handler -------------------------------------- */
+
+void Message::set_latency(uint32_t cycles) {
+    latency_ = cycles;
+}
+
+uint32_t Message::get_latency() const {
+    return latency_;
+}
+
+void Message::decrement_latency(uint32_t cycles) {
+    // Evitamos underflow
+    if (cycles >= latency_) latency_ = 0;
+    else                    latency_ -= cycles;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
+
 std::string Message::to_string() const {
     auto operation_name = [](Operation k) {
         switch (k) {
@@ -63,9 +84,11 @@ std::string Message::to_string() const {
 
     char buf[256];
     std::snprintf(buf, sizeof(buf),
-                  "[MSG %s src=%d dst=%d qos=%u addr=0x%016llX size=%u nl=%u sl=%u cl=%u status=%u data_words=%zu]",
+                  "[MSG %s src=%d dst=%d qos=%u addr=0x%016llX size=%u nl=%u sl=%u cl=%u status=%u data_words=%zu latency=%u]",
                   operation_name(operation_), src_id_, dest_id_, qos_,
                   static_cast<unsigned long long>(address_), size_, num_lines_,
-                  start_line_, cache_line_, status_, data_.size());
+                  start_line_, cache_line_, status_, data_.size(), latency_);
     return std::string(buf);
 }
+
+/* --------------------------------------------------------------------------------------------- */

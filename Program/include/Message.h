@@ -84,7 +84,32 @@ public:
     void set_status(uint32_t st);
     void set_data(const std::vector<uint32_t>& d);
 
-    /* --------------------------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------------------------- */
+
+/* -------------------------------------- Latency Handler -------------------------------------- */
+
+    /**
+     * @brief Establece la latencia (en ciclos) que debe “recorrer” este mensaje.
+     * @param cycles Número de ciclos de latencia.
+     */
+    void set_latency(uint32_t cycles);
+
+    /**
+     * @brief Obtiene la latencia restante en ciclos.
+     * @return Ciclos que faltan para completar la transmisión.
+     */
+    uint32_t get_latency() const;
+
+    /**
+     * @brief Decrementa la latencia restante.
+     * @param cycles Ciclos a restar (por defecto 1). Nunca baja de 0.
+     */
+    void decrement_latency(uint32_t cycles = 1);
+
+/* --------------------------------------------------------------------------------------------- */
+
+/* ---------------------------------------- Testing -------------------------------------------- */
+
 
     /**
      * @brief Genera una representación en texto del mensaje para depuración.
@@ -94,14 +119,18 @@ public:
 
 private:
     Operation operation_{Operation::UNDEFINED}; /**< Tipo de operación. */
-    int src_id_{-1};               /**< ID del PE origen. */
-    int dest_id_{-1};              /**< ID del PE destino (-1=Broadcast). */
-    uint64_t address_{0};          /**< Dirección de memoria. */
-    uint8_t qos_{0};               /**< Calidad de servicio. */
-    uint32_t size_{0};             /**< Tamaño en bytes. */
-    uint32_t num_lines_{0};        /**< Número de líneas de caché. */
-    uint32_t start_line_{0};       /**< Primera línea de caché. */
-    uint32_t cache_line_{0};       /**< Línea de caché específica. */
-    uint32_t status_{0};           /**< Código de estado de la operación. */
-    std::vector<uint32_t> data_;   /**< Payload de datos. */
+    int src_id_{-1};                /**< ID del PE origen. */
+    int dest_id_{-1};               /**< ID del PE destino (-1=Broadcast). */
+    uint64_t address_{0};           /**< Dirección de memoria. */
+    uint8_t qos_{0};                /**< Calidad de servicio. */
+    uint32_t size_{0};              /**< Tamaño en bytes. */
+    uint32_t num_lines_{0};         /**< Número de líneas de caché. */
+    uint32_t start_line_{0};        /**< Primera línea de caché. */
+    uint32_t cache_line_{0};        /**< Línea de caché específica. */
+    uint32_t status_{0};            /**< Código de estado de la operación. */
+    std::vector<uint32_t> data_;    /**< Payload de datos. */
+
+    uint32_t latency_{0};           /**< Latencia restante en ciclos. */
 };
+
+/* --------------------------------------------------------------------------------------------- */

@@ -110,6 +110,49 @@ public:
     /** @brief Devuelve true si la cola intermedia de procesamiento está vacía. */
     bool mid_processing_empty() const;
 
+    /** @brief Devuelve el número de mensajes actualmente en mid_processing_queue_. */
+    size_t mid_processing_size() const;
+
+/* ------------------------------------ */
+/*                                      */
+/*               out_queue              */
+/*                                      */
+/* ------------------------------------ */
+
+
+    /**
+     * @brief Encola un mensaje en la cola de respuestas salientes según el esquema de arbitraje.
+     *
+     * Inserta el mensaje en out_queue_ de la siguiente manera:
+     * - Si scheme_ == FIFO, lo pone al final de la cola.
+     * - Si scheme_ == PRIORITY, lo inserta en orden descendente de QoS.
+     *
+     * Esta cola contiene las respuestas que ya han completado su latencia
+     * en mid_processing_queue_ y están listas para despacharse a los PEs.
+     *
+     * @param m Mensaje de respuesta a encolar en out_queue_.
+     */
+    void push_out_queue(const Message& m);
+
+
+    /**
+     * @brief Extrae y elimina el mensaje en la posición dada de out_queue_.
+     *
+     * Útil cuando sabes qué índice de respuesta ya debe ser despachado
+     * y quieres retirarlo de la cola de salida.
+     *
+     * @param index Índice (0‐based) del mensaje a extraer.
+     * @return Copia del Message que estaba en esa posición.
+     * @throws std::out_of_range si index >= tamaño de out_queue_.
+     */
+    Message pop_out_queue_at(size_t index);
+
+    /**
+     * @brief Devuelve true si la cola de respuestas salientes está vacía.
+     * @return true si no hay mensajes pendientes en out_queue_.
+     */
+    bool out_queue_empty() const;
+
 /* --------------------------------------------------------------------------------------------- */
 
 
@@ -161,18 +204,27 @@ public:
      */
     void debug_print_mid_processing_queue() const;
 
+    /**
+     * @brief Imprime en consola todas las respuestas pendientes en out_queue_.
+     *
+     * Hace una copia de out_queue_ para no alterar la cola real,
+     * y lista cada Message usando Message::to_string().
+     */
+    void debug_print_out_queue() const;
+
 /* --------------------------------------------------------------------------------------------- */
 
 private:
     int                 num_pes_;               /**< Número de PEs conectados */
     ArbitScheme         scheme_;                /**< Esquema de arbitraje */
-    ICState             state_{ICState::IDLE};  /**< Estado del Interconnect */ /* NEW */
+    ICState             state_{ICState::IDLE};  /**< Estado del Interconnect */
     
     std::deque<Message> in_queue_;              /**< Cola de Messages entrantes */
     mutable std::mutex  in_queue_mtx_;          /**< Protege in_queue_ contra accesos concurrentes. */
     
-    std::deque<Message> mid_processing_queue_;  /**< Cola de Messages en ejecucion */ /* NEW */
-    mutable std::mutex  mid_processing_mtx_;    /**< Protege mid_processing_queue_ */ /* NEW */
+    std::deque<Message> mid_processing_queue_;  /**< Cola de Messages en ejecucion */
+    mutable std::mutex  mid_processing_mtx_;    /**< Protege mid_processing_queue_ */
 
-    std::deque<Message> out_queue_;             /**< Cola de Messages salientes */
+    std::deque<Message> out_queue_;             /**< Cola de respuestas salientes */
+    mutable std::mutex  out_queue_mtx_;         /**< Protege out_queue_ */
 };

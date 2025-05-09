@@ -119,9 +119,9 @@ void System::run() {
 
     // 3) Bucle de stepping: esperar Enter y avanzar un ciclo
     std::string line;
-    while (!all_pes_finished() && interconnect_->get_state() != ICState::FINISHED) {
+    while (!all_pes_finished() || interconnect_->get_state() != ICState::FINISHED) {
         // Pedir al usuario que avance
-        std::cout << "\nPress [Enter] to advance one cycle...";
+        std::cout << "\nPRESS [Enter] TO ADVANCE ONE CYCLE...\n";
         std::getline(std::cin, line);
 
         // Disparar un nuevo paso
@@ -291,10 +291,6 @@ void System::pe_execution_cycle(int pe_id) {
         // pe.set_state(PEState::FINISHED);
     }
 
-    // TESTING
-    std::cout << "\n[PE EXE Test] Dumping Interconnect in_queue:\n";
-    interconnect_->debug_print_in_queue();
-
     // Fin del thread
     std::cout << "\n[PE EXE] Thread ending for PE " << pe.get_id() << "\n";
 }
@@ -345,7 +341,7 @@ void System::interconnect_execution_cycle() {
         // if (all_pes_finished() && interconnect_->all_queues_empty()) {
         
         /* TESTING: POR AHORA SOLO SE REVISA SI ESTÁ EMPTY IN_QUEUE (!!!)*/
-        if (all_pes_finished() && interconnect_->in_queue_empty()) {
+        if (all_pes_finished() && interconnect_->all_queues_empty()) {
             std::cout << "[Interconnect] All work done, switching to FINISHED.\n";
             interconnect_->set_state(ICState::FINISHED);
             break;
@@ -364,24 +360,84 @@ void System::interconnect_execution_cycle() {
 
 
         // ———————— 4) PROCESAR UNA PETICIÓN ————————
+
+        // TODO: Revisar si hay mensajes en out_queue
+        if (!interconnect_->out_queue_empty()) {
+
+            /* Si hay Messages en out_queue, cada ciclo que pasa se sacara
+               el primer Response hacia cada PE que haya, dependiendo del estado
+               del PE. */
+
+            // TESTING: Sacar Message de out_queue (por ahora se sacará el primero)
+            Message response_to_PE = interconnect_->pop_out_queue_at(0);
+
+        }       
+
+
+        // TODO: Revisar si hay mensajes en mid_processing_queue
+        if (!interconnect_->mid_processing_empty()) {
+            /* Si hay Messages en mid_processing queue, cada ciclo que pasa
+               se le tiene que ir restando un ciclo a cada latencia de cada uno*/
+
+            /* Se tiene que revisar que si algun Message llega a 0 en el latency
+               se tendría que pasar el out_queue para generar el response */
+
+            // Se borraría el Message
+
+            // Se crearía el response
+
+            // Se pasaría el response al out_queue
+
+            // 1) Averiguamos cuántos mensajes había al inicio de este paso
+            size_t count = interconnect_->mid_processing_size();
+
+            // 2) Procesamos cada uno **una sola vez**
+            for (size_t i = 0; i < count; ++i) {
+                // a) Sacamos el mensaje más antiguo (índice 0)
+                Message msg_to_respond = interconnect_->pop_mid_processing_at(0);
+
+                // b) Decrementamos su latencia en 1 ciclo
+                msg_to_respond.decrement_latency();
+
+                // c) Si ya completó la latencia, lo mandamos a out_queue_; 
+                //    si no, lo volvemos a encolar en mid_processing para el próximo ciclo
+                if (msg_to_respond.get_latency() == 0) {
+                    interconnect_->push_out_queue(msg_to_respond);
+                } else {
+                    interconnect_->push_mid_processing(msg_to_respond);
+                }
+            }
+
+        }
+
+        
         if (!interconnect_->in_queue_empty()) {
             /* Si hay Messages en in_queue, cada ciclo se pasa la primera instruccion a mid_processing */
             /* Extrae el siguiente Message de in_queue para finalizar su espera por procesamiento */
             Message next_msg = interconnect_->pop_next();
+
+            // TODO: Calcular su latencia y asignarla (!)
+            // TESTING ONLY
+            next_msg.set_latency(4);
+
+            // TODO: Ejecutar la instruccion
+
             /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
             interconnect_->push_mid_processing(next_msg);
-            // TODO: Calcular su latencia y asignarla (!)
         }
 
+
+        // TESTING: Imprime el in_queue
+        std::cout << "\n[System Test] Dumping Interconnect in_queue:\n";
+        interconnect_->debug_print_in_queue();
+
         // TESTING: Imprime el mid_processing_queue
-        std::cout << "[System Test] Dumping Interconnect mid_processing_queue:\n";
+        std::cout << "\n[System Test] Dumping Interconnect mid_processing_queue:\n";
         interconnect_->debug_print_mid_processing_queue();
 
-
-        // TODO: Revisar si hay mensajes en mid_processing_queue
-
-
-        // TODO: Revisar si hay mensajes en out_queue
+        // TESTING: Imprime el out_queue
+        std::cout << "\n[System Test] Dumping Interconnect out_queue:\n";
+        interconnect_->debug_print_out_queue();
 
 
         // ———————— 5) VOLVER A IDLE ————————

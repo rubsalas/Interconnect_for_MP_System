@@ -21,10 +21,10 @@ bool Interconnect::all_queues_empty() const {
     // 1) Bloquear ambas colas para chequeo consistente
     std::lock_guard<std::mutex> lock_in(in_queue_mtx_);
     std::lock_guard<std::mutex> lock_mid(mid_processing_mtx_);
-    // std::lock_guard<std::mutex> lock_out(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock_out(out_queue_mtx_);
 
     // 2) Comprobar que todas estén vacías
-    return in_queue_.empty() && mid_processing_queue_.empty(); // && out_queue_.empty();
+    return in_queue_.empty() && mid_processing_queue_.empty() && out_queue_.empty();
 }
 
 /* ------------------------------------ */
@@ -53,8 +53,8 @@ void Interconnect::push_message(const Message& m) {
         in_queue_.insert(it, m);
     }
 
-    std::cout << "[Interconnect] Safely queued new message: "
-              << m.to_string() << "\n";
+    /*std::cout << "[Interconnect] Safely queued new message: "
+              << m.to_string() << "\n";*/
 }
 
 Message Interconnect::pop_next() {
@@ -88,8 +88,8 @@ void Interconnect::push_mid_processing(const Message& m) {
     // 2) Encolamos al final de la cola intermedia
     mid_processing_queue_.push_back(m);
     // 3) Debug opcional
-    std::cout << "[Interconnect] Enqueued to mid_processing: "
-              << m.to_string() << "\n";
+    /*std::cout << "[Interconnect] Enqueued to mid_processing: "
+              << m.to_string() << "\n";*/
 }
 
 Message Interconnect::pop_mid_processing_at(size_t index) {
@@ -108,6 +108,58 @@ Message Interconnect::pop_mid_processing_at(size_t index) {
 bool Interconnect::mid_processing_empty() const {
     std::lock_guard<std::mutex> lock(mid_processing_mtx_);
     return mid_processing_queue_.empty();
+}
+
+size_t Interconnect::mid_processing_size() const {
+    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    return mid_processing_queue_.size();
+}
+
+/* ------------------------------------ */
+/*                                      */
+/*               out_queue              */
+/*                                      */
+/* ------------------------------------ */
+
+
+void Interconnect::push_out_queue(const Message& m) {
+    // 1) Bloqueamos el mutex para asegurar acceso exclusivo
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+
+    // 2) Encolado según el esquema de arbitraje
+    if (scheme_ == ArbitScheme::FIFO) {
+        // FIFO puro: al final de la cola
+        out_queue_.push_back(m);
+    } else { // PRIORITY basada en QoS
+        // Insertar antes del primer mensaje con QoS menor
+        auto it = std::find_if(
+            out_queue_.begin(), out_queue_.end(),
+            [&](auto const& existing) {
+                return existing.get_qos() < m.get_qos();
+            }
+        );
+        out_queue_.insert(it, m);
+    }
+
+    // 3) Debug: mostramos que encolamos la respuesta
+    /*std::cout << "[Interconnect] Safely queued to out_queue: "
+              << m.to_string() << "\n";*/
+}
+
+Message Interconnect::pop_out_queue_at(size_t index) {
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    if (index >= out_queue_.size()) {
+        throw std::out_of_range("pop_out_queue_at: index out of range");
+    }
+    auto it = out_queue_.begin() + index;
+    Message m = *it;
+    out_queue_.erase(it);
+    return m;
+}
+
+bool Interconnect::out_queue_empty() const {
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    return out_queue_.empty();
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -173,6 +225,32 @@ void Interconnect::debug_print_mid_processing_queue() const {
 
     // 3) Hacemos una copia para iterar sin modificar la cola real
     std::deque<Message> copy = mid_processing_queue_;
+    if (copy.empty()) {
+        std::cout << "  (none)\n";
+        return;
+    }
+
+    // 4) Iteramos y mostramos cada mensaje
+    size_t idx = 0;
+    while (!copy.empty()) {
+        const Message& m = copy.front();
+        std::cout << "  [" << idx++ << "] " << m.to_string() << "\n";
+        copy.pop_front();
+    }
+
+    // 5) Línea en blanco al final para claridad
+    std::cout << std::endl;
+}
+
+void Interconnect::debug_print_out_queue() const {
+    // 1) Bloqueamos el mutex para proteger la cola
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+
+    // 2) Cabecera para identificar la salida
+    std::cout << "[Interconnect] Pending messages in out_queue_:\n";
+
+    // 3) Hacemos una copia para iterar sin modificar la cola real
+    std::deque<Message> copy = out_queue_;
     if (copy.empty()) {
         std::cout << "  (none)\n";
         return;
