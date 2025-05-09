@@ -22,26 +22,12 @@ public:
      */
     SharedMemory();
 
+/* ---------------------------------------- Initializing --------------------------------------- */
+
     /**
      * @brief Inicializa el shared memory llenandolo de forma aleatoria y lo vuelca.
      */
     void initialize();
-
-    /**
-     * @brief Lee una palabra de 32 bits en la dirección especificada.
-     * @param address Índice de la palabra a leer (0-based).
-     * @return Valor de 32 bits almacenado en la posición.
-     * @throws std::out_of_range Si la dirección está fuera del rango válido.
-     */
-    uint32_t load(size_t address) const;
-
-    /**
-     * @brief Escribe un valor de 32 bits en la dirección especificada.
-     * @param address Índice de la palabra a escribir (0-based).
-     * @param value Valor de 32 bits a almacenar.
-     * @throws std::out_of_range Si la dirección está fuera del rango válido.
-     */
-    void store(size_t address, uint32_t value);
 
     /**
      * @brief Devuelve la capacidad total de la memoria en palabras de 32 bits.
@@ -76,9 +62,57 @@ public:
      */
     void dump_to_text_file() const;
 
-    void write_shared_memory_lines(const std::vector<std::vector<uint8_t>>& blocks, size_t address);
+/* --------------------------------------------------------------------------------------------- */
+
+/* --------------------------------------- Data Handling --------------------------------------- */ 
+
+    /**
+     * @brief Sobrescribe múltiples bloques en la representación de texto de la memoria compartida.
+     *
+     * Lee el fichero de volcado de memoria compartida (dump_path_txt), reemplaza las líneas
+     * correspondientes comenzando en la dirección de palabra @p address y luego escribe de nuevo
+     * todo el contenido al disco. Cada bloque en @p blocks debe contener exactamente 16 bytes
+     * (4 palabras de 4 bytes), y se mapea a 4 líneas consecutivas en el fichero, cada línea
+     * representando una palabra en notación hexadecimal de 8 dígitos.
+     *
+     * @param blocks  Vector de bloques a escribir; cada bloque es un vector de 16 bytes.
+     * @param address Índice de palabra (0-based) desde el cual comenzar la escritura. Cada
+     *                bloque ocupa cuatro líneas, por lo que se sobrescriben las líneas
+     *                @p address ... @p address + 4*blocks.size() - 1.
+     *
+     * @note En caso de fallo al abrir el fichero, bloque de tamaño incorrecto o
+     *       dirección fuera de rango, se imprimirá un mensaje de error a std::cerr
+     *       y la función retornará prematuramente sin lanzar excepciones.
+     */
+    void write_shared_memory_lines(const std::vector<std::vector<uint8_t>>& blocks,
+                                size_t address);
     
-    std::vector<std::vector<std::string>> read_shared_memory(size_t address, size_t size);
+    /*
+    * @brief Lee bloques de palabra desde la representación de texto de la memoria compartida.
+    *
+    * Abre el fichero de volcado de memoria compartida (dump_path_txt) y retorna las líneas
+    * correspondientes al rango especificado por @p address y @p size_bytes. Cada línea en
+    * el fichero representa una palabra de 4 bytes en hexadecimal de 8 dígitos.
+    *
+    * La función agrupa las palabras en bloques de 4 líneas (128 bits):  
+    * - Calcula cuántas líneas (palabras) son necesarias para cubrir @p size_bytes.  
+    * - Agrupa esas líneas en sub-vectores de longitud 4 (padding con "00000000" si el fichero \ 
+    *   no tiene suficientes líneas).  
+    *
+    * @param address    Índice de palabra (0-based) desde el cual iniciar la lectura.  
+    * @param size_bytes Número total de bytes a leer; redondea hacia arriba al siguiente \ 
+    *                   múltiplo de 4.  
+    * @return Vector de bloques, donde cada bloque es un vector de cuatro cadenas de 8 dígitos \ 
+    *         hexadecimales. Si la lectura excede el final del fichero, las palabras faltantes \ 
+    *         se rellenan con "00000000".  
+    *
+    * @note En caso de error al abrir el fichero, se imprime un mensaje de error y se retorna \ 
+    *       un vector vacío.
+    */
+    std::vector<std::vector<std::string>> read_shared_memory(size_t address,
+                                                            size_t size_bytes);
+
+/* --------------------------------------------------------------------------------------------- */
 
 private:
     static constexpr size_t     MEMORY_SIZE = 4096; /**< Número de palabras de 32 bits en la memoria. */

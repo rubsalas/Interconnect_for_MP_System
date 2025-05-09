@@ -121,7 +121,7 @@ void System::run() {
     std::string line;
     while (!all_pes_finished() || interconnect_->get_state() != ICState::FINISHED) {
         // Pedir al usuario que avance
-        std::cout << "\nPRESS [Enter] TO ADVANCE ONE CYCLE...\n";
+        std::cout << "\nPRESS [Enter] TO ADVANCE ONE CYCLE...\n\n";
         std::getline(std::cin, line);
 
         // Disparar un nuevo paso
@@ -293,7 +293,7 @@ void System::pe_execution_cycle(int pe_id) {
     }
 
     // Fin del thread
-    std::cout << "\n[PE " << pe.get_id() << " Thread ending...\n";
+    std::cout << "\n[PE " << pe.get_id() << "] Thread ending...\n";
 }
 
 void System::join_pe_threads() {
@@ -417,16 +417,128 @@ void System::interconnect_execution_cycle() {
             /* Extrae el siguiente Message de in_queue para finalizar su espera por procesamiento */
             Message next_msg = interconnect_->pop_next();
 
-            // TODO: Calcular su latencia y asignarla (!)
-            // TESTING ONLY
-            next_msg.set_latency(4);
+            // 3) DECISION: ¿qué tipo de operación es?
+            if (next_msg.get_operation() == Operation::READ_MEM) {
+                // → Petición de lectura: iremos a memoria principal
+                std::cout << "[IC] READ_MEM: preparando acceso a SharedMemory\n";
 
-            // TODO: Ejecutar la instruccion
+                // 1) Sacamos la dirección y el tamaño
+                uint64_t address = next_msg.get_address();
+                uint32_t size = next_msg.get_size();
+                uint32_t   status    = 0x1;                  // OK por defecto
 
-            /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
-            interconnect_->push_mid_processing(next_msg);
+                // 3) Leemos del SharedMemory
+                std::vector<std::vector<std::string>> memory_data;  // TODO: FIX!
+                try {
+                    memory_data = shared_memory_->read_shared_memory(address, size);
+                } catch (const std::exception& e) {
+                    std::cerr << "[IC] Error en READ_MEM: " << e.what() << "\n";
+                    status = 0x0;
+                    continue;
+                }
+
+                // 5) Creamos la respuesta WRITE_RESP con el estado de la operación
+                Message read_resp(
+                    Operation::READ_RESP,
+                    /*src=*/-1,                     // Interconnect
+                    /*dst=*/next_msg.get_src_id(),  // PE origen
+                    /*addr=*/address,
+                    /*qos=*/next_msg.get_qos(),
+                    /*size=*/size,
+                    /*num_lines=*/0,
+                    /*start_line=*/0,
+                    /*cache_line=*/0,
+                    /*status=*/status,
+                    /*data=*/{} // TODO: // TODO: FIX! ACTUALIZAR PAYLOAD LUEGO DE ARREGLAR FUNCIONES
+                );
+
+                // 6) Calculamos y asignamos la latencia
+                // TODO: Calcular su latencia y asignarla (!)
+                // TESTING ONLY
+                read_resp.set_latency(12);
+
+                // 7) Encolamos en la etapa media para simular la latencia
+                interconnect_->push_mid_processing(read_resp);
+
+            } else if (next_msg.get_operation() == Operation::WRITE_MEM) {
+                // → Petición de escritura: datos vienen en next_msg.get_data()
+                std::cout << "[IC] WRITE_MEM: preparando escritura en SharedMemory\n";
+
+                // 1) Extraemos dirección y bloque de datos
+                uint64_t   address   = next_msg.get_address();
+                auto       blocks    = next_msg.get_data();  // vector<vector<uint8_t>>
+                uint32_t   status    = 0x1;                  // OK por defecto
+
+                try {
+                    // 3) Volcamos al fichero de texto de SharedMemory
+                    shared_memory_->write_shared_memory_lines(blocks, address);
+                } catch (const std::exception& e) {
+                    // 4) Si falla, lo reportamos y marcamos NOT_OK
+                    std::cerr << "[IC] Error en WRITE_MEM: " << e.what() << "\n";
+                    status = 0x0;
+                    continue;
+                }
+
+                // 5) Creamos la respuesta WRITE_RESP con el estado de la operación
+                Message write_resp(
+                    Operation::WRITE_RESP,
+                    /*src=*/-1,                     // Interconnect
+                    /*dst=*/next_msg.get_src_id(),  // PE origen
+                    /*addr=*/address,
+                    /*qos=*/next_msg.get_qos(),
+                    /*size=*/0,
+                    /*num_lines=*/0,
+                    /*start_line=*/0,
+                    /*cache_line=*/0,
+                    /*status=*/status,
+                    /*data=*/{}                     // sin payload
+                );
+
+                // 6) TODO: Calcular su latencia y asignarla (!)
+                // TESTING ONLY
+                write_resp.set_latency(18);
+
+                // 7) Encolamos la respuesta en out_queue_
+                interconnect_->push_mid_processing(write_resp);
+
+            } else if (next_msg.get_operation() == Operation::BROADCAST_INVALIDATE) {
+                // → Broadcast: nada va a memoria, sino a invalidar caches
+                std::cout << "[IC] BROADCAST_INVALIDATE: enviando INV_LINE a todos los PEs\n";
+                // TODO: Generar tantos mensajes INV_LINE como PEs (excepto src)
+                //       y encolarlos en out_queue_ directamente o en mid_pipeline según latencia
+
+                // TODO: Calcular su latencia y asignarla (!)
+                // TESTING ONLY
+                next_msg.set_latency(8);
+
+                // TODO: Ejecutar la instruccion
+
+                /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
+                interconnect_->push_mid_processing(next_msg);
+
+            } else if (next_msg.get_operation() == Operation::INV_ACK) {
+                // → Acknowledgment de invalidación: lleva de vuelta al originador
+                std::cout << "[IC] INV_ACK: contabilizando ack para BROADCAST\n";
+                // TODO: Llevar un contador interno; cuando llegue el último,
+                //       encolas un INV_COMPLETE al PE origen
+
+                // TODO: Calcular su latencia y asignarla (!)
+                // TESTING ONLY
+                next_msg.set_latency(4);
+
+                // TODO: Ejecutar la instruccion
+
+                /* Ingresa el Message en la cola de mid_processing para iniciar su ejecucion */
+                interconnect_->push_mid_processing(next_msg);
+
+            } else {
+                // Cualquier otro caso (p.ej. END o UNDEFINED)
+                std::cout << "[IC] Mensaje de tipo "
+                  << static_cast<int>(next_msg.get_operation())
+                  << " no procesado explícitamente\n";
+            }
+            
         }
-
 
         // TESTING: Imprime el in_queue
         std::cout << "\n[System Test] Dumping Interconnect in_queue:\n";
@@ -600,59 +712,6 @@ void System::system_test_G(const std::string& file_path) {
 void System::system_test_R() {
 	std::cout << "\n[TEST] Starting System Test R...\n";
 
-
-    // Cabecera de la prueba
-    std::cout << "\n[System Test] Printing each PE's current message before starting threads:\n";
-
-    // Recorre el vector de PEs
-    for (int i = 0; i < total_pes_; ++i) {
-        const PE& pe = pes_[i];                          // Referencia al PE i
-        const Message& msg = pe.get_actual_message();    // Su mensaje de prueba
-
-        // Imprime ID del PE y el contenido formateado del mensaje
-        std::cout << "  PE " << pe.get_id() << ": "
-                  << msg.to_string() << "\n";
-    }
-
-
-    // MESSAGE TESTING
-            // 3) Creamos un mensaje de prueba (READ_MEM) con datos falsos
-            /*Message actual_pe_message(
-                Operation::WRITE_MEM,         // Tipo de operación
-                pe.get_id(),                  // src = este PE
-                -1,                           // dst = Interconnect (no se usa aquí)
-                0x100 * pe.get_qos(),         // address varía según el PE
-                pe.get_qos(),                 // QoS del PE
-                4 * pe.get_qos(),             // size = ejemplo variable
-                4,                            // num_of_cache_lines (dummy)
-                pe.get_qos() + 16,            // start_cache_line (dummy)
-                pe.get_qos() + 1080,          // cache_line (dummy)
-                0,                            // status (no aplica para READ_MEM)
-                {}                            // data vacío
-            );*/
-
-
-    //run();
-
-
-    std::cout << "\n[System Test] Printing each PE's current message after starting threads:\n";
-
-    // Recorre el vector de PEs
-    for (int i = 0; i < total_pes_; ++i) {
-        const PE& pe = pes_[i];                          // Referencia al PE i
-        const Message& msg = pe.get_actual_message();    // Su mensaje de prueba
-
-        // Imprime ID del PE y el contenido formateado del mensaje
-        std::cout << "  PE " << pe.get_id() << ": "
-                  << msg.to_string() << "\n";
-    }
-
-
-    std::cout << "\n[System Test] Dumping Interconnect in_queue:\n";
-    interconnect_->debug_print_in_queue();
-
-
-    // 4) Fin del programa
     std::cout << "\n[TEST] System Test Complete.\n";
 }
 

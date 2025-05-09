@@ -20,6 +20,8 @@ SharedMemory::SharedMemory()
         initialize();
 }
 
+/* ---------------------------------------- Initializing --------------------------------------- */
+
 void SharedMemory::initialize() {
     // Se llena con datos aleatorios
     fill_random();
@@ -29,20 +31,6 @@ void SharedMemory::initialize() {
 
     // Volcado del shared memory como text a disco
     dump_to_text_file();
-}
-
-uint32_t SharedMemory::load(size_t address) const {
-    if (address >= MEMORY_SIZE) {
-        throw std::out_of_range("Error: Dirección de memoria fuera de rango en load().");
-    }
-    return data[address];
-}
-
-void SharedMemory::store(size_t address, uint32_t value) {
-    if (address >= MEMORY_SIZE) {
-        throw std::out_of_range("Error: Dirección de memoria fuera de rango en store().");
-    }
-    data[address] = value;
 }
 
 size_t SharedMemory::size() const {
@@ -103,6 +91,9 @@ void SharedMemory::dump_to_text_file() const {
     file.close();
 }
 
+/* --------------------------------------------------------------------------------------------- */
+
+/* --------------------------------------- Data Handling --------------------------------------- */
 
 void SharedMemory::write_shared_memory_lines(const std::vector<std::vector<uint8_t>>& blocks, size_t address) {
     // Abrir el archivo para lectura
@@ -197,3 +188,5 @@ std::vector<std::vector<std::string>> SharedMemory::read_shared_memory(size_t ad
 
     return result;
 }
+
+/* --------------------------------------------------------------------------------------------- */
