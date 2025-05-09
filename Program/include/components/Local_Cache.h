@@ -62,15 +62,31 @@ public:
      */
     void read_test(uint32_t start_line, uint32_t num_lines) const;
 
-    /* --------------------------------------------------------------------------------------------- */
+   static constexpr size_t BLOCKS = 128;
+   static constexpr size_t BLOCK_SIZE = 16;
+
+
+    // std::array<uint8_t, BLOCK_SIZE> get_cache_line(uint32_t line_index) const;
+
+    static std::vector<std::vector<uint8_t>> read_cache_from_file(uint32_t id, 
+                                                                  uint32_t start_line, 
+                                                                  uint32_t num_lines);
+
+
+    static void write_cache_lines(uint32_t id, uint32_t start_line,
+    const std::vector<std::vector<uint8_t>>& lines);
+
+    std::array<uint8_t, BLOCK_SIZE>
+    get_cache_line(uint32_t line_index) const;
+      /* --------------------------------------------------------------------------------------------- */
 
 private:
     int id_;                            /**< ID del PE al que pertenece. */
     std::string dump_path;              /**< Directorio donde se volcara el cache. */
     /// Número de bloques en el caché.
-    static constexpr size_t BLOCKS = 128;
+    //static constexpr size_t BLOCKS = 128;
     /// Tamaño de cada bloque en bytes.
-    static constexpr size_t BLOCK_SIZE = 16;
+   // static constexpr size_t BLOCK_SIZE = 16;
     /// Datos del caché: vector de bloques, cada uno es un array de bytes.
     std::vector<std::array<uint8_t, BLOCK_SIZE>> cache_data;
 };

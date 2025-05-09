@@ -76,6 +76,10 @@ public:
      */
     void dump_to_text_file() const;
 
+    void write_shared_memory_lines(const std::string& hex_128bits, size_t address);
+
+    std::vector<std::vector<std::string>> read_shared_memory(size_t address, size_t size);
+
 private:
     static constexpr size_t     MEMORY_SIZE = 4096; /**< Número de palabras de 32 bits en la memoria. */
     std::vector<uint32_t>       data;               /**< Contenedor interno de las palabras de memoria. */
