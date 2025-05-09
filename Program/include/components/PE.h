@@ -18,7 +18,7 @@ enum class PEState {
 
 enum class PEResponseState {
     READY,       /**< Sin petición activa, no espera nada. */
-    WAITING,     /**< Ha enviado un mensaje y espera la respuesta. */
+    WAITING,     /**< Puede haber enviado un mensaje o no, siempre espera una respuesta. */
     PROCESSING,  /**< Ha recibido respuesta y la está procesando. */
     COMPLETED    /**< Procesó la respuesta y está listo para avanzar. */
 };

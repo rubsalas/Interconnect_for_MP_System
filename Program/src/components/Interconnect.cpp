@@ -26,6 +26,26 @@ uint32_t Interconnect::register_broadcast(int origin_pe) {
     return bid;
 }
 
+bool Interconnect::has_response(int pe_id) const {
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    for (auto const& m : out_queue_) {
+        if (m.get_dest_id() == pe_id) return true;
+    }
+    return false;
+}
+
+Message Interconnect::pop_response(int pe_id) {
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    for (auto it = out_queue_.begin(); it != out_queue_.end(); ++it) {
+        if (it->get_dest_id() == pe_id) {
+            Message m = *it;
+            out_queue_.erase(it);
+            return m;
+        }
+    }
+    throw std::runtime_error("pop_response: no pending response for PE " + std::to_string(pe_id));
+}
+
 /* ------------------------------------- Message Handling -------------------------------------- */
 
 bool Interconnect::all_queues_empty() const {

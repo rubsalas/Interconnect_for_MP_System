@@ -192,9 +192,104 @@ void System::pe_execution_cycle(int pe_id) {
         // Actualizamos el tracker local
         last_step = current_step_;
 
+        // —— 3) CHEQUEO DE RESPUESTA —— 
+        if (pe.get_response_state() == PEResponseState::WAITING) {
+
+            if (interconnect_->has_response(pe_id)) {
+
+                // Se pondra a procesar la respuesta
+                pe.set_response_state(PEResponseState::PROCESSING);
+
+                // 1) Sacamos UNA respuesta para este PE
+                Message resp = interconnect_->pop_response(pe_id);
+
+                // 2) El PE la procesa
+                std::cout << "[PE " << pe_id << "] Received response: "
+                        << resp.to_string() << "\n";
+
+                // 1) CASO INV_LINE
+                if (resp.get_operation() == Operation::INV_LINE) {
+                    // 1.a) Invalida la línea en el cache local
+                    cache.invalidate_line(resp.get_cache_line(), pe_id);
+                    
+                    // 1.b) Construye el ACK usando el mismo broadcast_id
+                    Message inv_ack(
+                        Operation::INV_ACK,
+                        /*src=*/pe_id,
+                        /*dst=*/-1,  // Interconnect (no lo usas en tu diseño)
+                        /*addr=*/0,
+                        /*qos=*/resp.get_qos(), // Mantiene el QoS del PE que envio el B_I
+                        /*size=*/0,
+                        /*num_lines=*/0,
+                        /*start_line=*/0,
+                        /*cache_line=*/0,
+                        /*status=*/0,
+                        /*data=*/{}
+                    );
+
+                    inv_ack.set_broadcast_id(resp.get_broadcast_id());
+
+                    // TODO: Calcular su latencia y asignarla (!)
+                    // TESTING ONLY
+                    inv_ack.set_latency(2);
+
+                    // Se envia al in_queue del Interconnect como un mensaje asincrono
+                    interconnect_->push_message(inv_ack);
+
+                    std::cout << "[PE " << pe_id 
+                            << "] Procesado INV_LINE (línea " << resp.get_cache_line()
+                            << "), enviado INV_ACK con bid=" << resp.get_broadcast_id() << "\n";
+
+                }
+
+                // 2) OTROS TIPOS DE RESPUESTA (READ_RESP, WRITE_RESP, INV_COMPLETE…)
+                else if (resp.get_operation() == Operation::READ_RESP) {
+                    // Por ahora solo imprimimos información básica
+                    std::cout << "[PE " << pe_id << "] READ_RESP recibido:\n"
+                            << "    Dirección solicitada: 0x" << std::hex << resp.get_address() << std::dec << "\n"
+                            << "    Tamaño solicitado: " << resp.get_size() << " bytes\n"
+                            << "    Líneas de cache leídas: " << resp.get_num_lines() << "\n"
+                            << "    Payload (líneas): " << resp.get_data().size() << "\n";
+                    // Opcional: imprimir primer byte de cada línea
+                    for (size_t i = 0; i < resp.get_data().size(); ++i) {
+                        const auto& line = resp.get_data()[i];
+                        if (!line.empty()) {
+                            std::cout << "      Línea[" << i << "][0] = 0x"
+                                    << std::hex << static_cast<int>(line[0]) << std::dec << "\n";
+                        }
+                    }
+
+                } else if (resp.get_operation() == Operation::WRITE_RESP) {
+                    std::cout << "[PE " << pe_id << "] WRITE_RESP recibido:\n"
+                            << "    Dirección escrita: 0x" << std::hex << resp.get_address() << std::dec << "\n"
+                            << "    Estado (status): 0x" << std::hex << resp.get_status() << std::dec << "\n";
+
+                } else if (resp.get_operation() == Operation::INV_COMPLETE) {
+                    std::cout << "[PE " << pe_id << "] INV_COMPLETE recibido:\n"
+                            << "    Broadcast ID: " << resp.get_broadcast_id() << "\n"
+                            << "    Línea inválidada confirmada por todos los PEs.\n";
+                }
+
+                /* INV_LINE no es la respuesta que está esperando el PE*/
+                if (resp.get_operation() != Operation::INV_LINE) {
+                    pe.set_response_state(PEResponseState::COMPLETED);
+                    pe.set_state(PEState::IDLE);
+                }
+
+                if(resp.get_operation() == Operation::INV_LINE 
+                    && pe.get_actual_message().get_operation() == Operation::BROADCAST_INVALIDATE) {
+                        pe.set_response_state(PEResponseState::WAITING);
+                    }
+
+            }
+            
+        }
+
+
+        // TODO: Revisar porque puede que hagan falta respuestas!
         // —————— 2) FINISHED POR PC FUERA DE RANGO ——————
         // Si el PC ya no apunta a ninguna instrucción válida, terminamos
-        if (pe.get_pc() >= total_instr) {
+        if (pe.get_pc() >= total_instr && interconnect_->all_queues_empty()) {
             std::cout << "[PE " << pe_id 
                       << "] PC (" << pe.get_pc() 
                       << ") >= total_instr (" << total_instr 
@@ -203,13 +298,14 @@ void System::pe_execution_cycle(int pe_id) {
             break;
         }
 
+
         /* Cuando el PE este IDLE puede obtener una nueva instruccion */
         if (pe.get_state() == PEState::IDLE) {
 
-            // —————— 3) FETCH: Obtenemos la instrucción actual ——————
+            // —————— 4) FETCH: Obtenemos la instrucción actual ——————
             std::cout << "[PE " << pe.get_id() << "] State=IDLE. Getting new instruction...\n";
 
-            // —————— 4) DECODE: La convertimos a Message ——————
+            // —————— 5) DECODE: La convertimos a Message ——————
             /* PE manda a convertir la instruccion del Instruction Memory,
                ubicada en el PC actual, a Message */
             Message actual_pe_message = pe.convert_to_message(pe.get_pc());
@@ -226,12 +322,12 @@ void System::pe_execution_cycle(int pe_id) {
             /*std::cout << "  PE " << pe.get_id() << ": "
                     << actual_pe_message.to_string() << "\n";*/
 
-            // —————— 5) Si es WRITE_MEM, leer cache ——————
+            // —————— 6) Si es WRITE_MEM, leer cache ——————
             /* Si es WRITE_MEM se trae el dato de Cache */
             if (pe.get_actual_message().get_operation() == Operation::WRITE_MEM) {
                 std::cout << "[PE " << pe.get_id() << "] WRITE_MEM detected – reading from cache:\n";
 
-                // 2) Invocamos al método de LocalCache que simula la lectura
+                // 1) Invocamos al método de LocalCache que simula la lectura
                 /*cache.read_test(pe.get_actual_message().get_start_line(),
                                 pe.get_actual_message().get_num_lines());*/
 
@@ -256,7 +352,7 @@ void System::pe_execution_cycle(int pe_id) {
                         << blocks.size() << " lines)\n";
             }
 
-            // —————— 6) ISSUE: Enviamos el mensaje al Interconnect ——————
+            // —————— 7) ISSUE: Enviamos el mensaje al Interconnect ——————
             std::cout << "[PE " << pe.get_id() << "] Sending message to Interconnect...\n";
             interconnect_->push_message(pe.get_actual_message());
 
@@ -265,25 +361,30 @@ void System::pe_execution_cycle(int pe_id) {
             // 7) Cambiar el estado de respuesta del PE a WAITING ya que puede ahora esperar una respuesta
             pe.set_response_state(PEResponseState::WAITING);
 
-            /* TODO: Revisar si hay alguna respuesta por venir */
-            // —————— 7) (Pendiente) Esperar y procesar respuesta… ——————
-            // Aquí podrías hacer:
-            //   while (!interconnect_->has_response(pe_id)) std::this_thread::yield();
-            //   Message resp = interconnect_->get_response(pe_id);
-            //   pe.handle_response(resp);
-            //   pe.set_response_state(PEResponseState::COMPLETED);
-
             // —————— 8) ADVANCE PC y volver a IDLE ——————
             pe.pc_plus_4();
 
             // TODO: Revisar esto porque puede quedar en Stalled si no se resuleve la respuesta
-            pe.set_state(PEState::IDLE);
+            //pe.set_state(PEState::IDLE);
+
+            // TODO: Revisar si dejar aqui el cambio de nuevo al estado de WAINTING para una respuesta
+            //pe.set_response_state(PEResponseState::WAITING);
 
             // Debug: mostramos nuevo PC
             std::cout << "[PE " << pe_id 
                     << "] Avanzando PC a " << pe.get_pc() 
-                    << ", estado IDLE\n";
+                    << ", estado " << pe.state_to_string() << ".\n";
 
+        }
+        /* Cuando el PE este IDLE puede obtener una nueva instruccion */
+        else if (pe.get_state() == PEState::STALLED) {
+
+            std::cout << "[PE " << pe_id << "] state = STALLED. Awaiting response.\n";
+
+        } else {
+            // Debug: mostramos nuevo PC
+            std::cout << "[PE " << pe_id 
+                    << "]  estado " << pe.state_to_string() << " (?).\n";
         }
 
     }
@@ -357,15 +458,16 @@ void System::interconnect_execution_cycle() {
         // ———————— 4) PROCESAR UNA PETICIÓN ————————
 
         // TODO: Revisar si hay mensajes en out_queue
-        if (!interconnect_->out_queue_empty()) {
+        // TODO: Revisar si esto es necesario ademas de la logica que hay en el thread de PE
+        //if (!interconnect_->out_queue_empty()) {
 
             /* TODO: Si hay Messages en out_queue, cada ciclo que pasa se sacara
                el primer Response hacia CADA PE que haya, dependiendo del estado
                del PE. */
 
             // TESTING: Sacar Message de out_queue (por ahora se sacará el primero)
-            Message response_to_PE = interconnect_->pop_out_queue_at(0);
-        }       
+            //Message response_to_PE = interconnect_->pop_out_queue_at(0);
+        //}       
 
 
         // TODO: Revisar si hay mensajes en mid_processing_queue

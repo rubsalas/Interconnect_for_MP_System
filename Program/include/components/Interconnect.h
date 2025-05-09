@@ -58,6 +58,17 @@ public:
      */
     uint32_t register_broadcast(int origin_pe);
 
+    /**
+     * @brief Devuelve true si hay al menos una respuesta pendiente para el PE dado.
+     */
+    bool has_response(int pe_id) const;
+
+    /**
+     * @brief Extrae y elimina la primera respuesta destinada al PE dado.
+     * @throws std::runtime_error si no hay respuesta para ese PE.
+     */
+    Message pop_response(int pe_id);
+
 /* ------------------------------------- Message Handling -------------------------------------- */
 
     /**
