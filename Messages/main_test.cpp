@@ -1,53 +1,45 @@
-#include <iostream>
-#include <cstdlib>
-#include "../include/components/PE.h" // Aquí se asume que convert_to_message está declarada aquí
-#include "../include/components/Instruction_Memory.h" 
-#include "../include/Message.h" 
-#include <bitset>
-#include <fstream>
+// #include "../include/components/Shared_Memory.h"
+// #include <iostream>
+// #include <vector>
+// #include <cstdlib>
+// #include <cmath>
 
+// int main(int argc, char* argv[]) {
+//     if (argc != 3) {
+//         std::cerr << "Uso: " << argv[0] << " <address> <size_bytes>\n";
+//         std::cerr << "  - address: línea de memoria desde donde leer (entero >= 0)\n";
+//         std::cerr << "  - size_bytes: cantidad de bytes a leer desde esa dirección\n";
+//         return 1;
+//     }
 
-// Declaración anticipada
-Message convert_to_message(const InstructionMemory& instruction_memory_, int index);
+//     // Leer argumentos
+//     size_t address = std::strtoul(argv[1], nullptr, 10);
+//     size_t size_bytes = std::strtoul(argv[2], nullptr, 10);
 
 int main_test(int argc, char* argv[]) {
     if (argc != 3) {
-        std::cerr << "Uso: " << argv[0] << " <archivo_instrucciones> <index>" << std::endl;
+        //std::cout << "Uso: " << argv[0] << " <archivo_instrucciones> <index>" << std::endl;
         return 1;
     }
+//     // Crear instancia de memoria
+//     SharedMemory shared_mem;
 
-    std::string filename = argv[1];
-    int index = std::atoi(argv[2]);
+//     // Leer bloques desde el archivo shared_memory.txt
+//     auto blocks = shared_mem.read_shared_memory(address, size_bytes);
 
-    // Cargamos las instrucciones manualmente (sin usar initialize ni pe_id)
-    InstructionMemory memoria(0); // Constructor requiere un ID, pero no se usará
-    memoria.instructions.clear(); // Limpia cualquier instrucción previa
+//     // Calcular cuántas líneas se deben mostrar (size_bytes / 4)
+//     size_t lines_to_read = static_cast<size_t>(std::ceil(size_bytes / 4.0));
+//     size_t total_lines_printed = 0;
 
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "No se pudo abrir el archivo: " << filename << std::endl;
-        return 1;
-    }
+//     std::cout << "\nLectura desde shared_memory.txt (" << size_bytes << " bytes desde línea " << address << "):\n";
 
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-        uint64_t instr = std::bitset<64>(line).to_ullong();
-        memoria.instructions.push_back(instr);
-    }
+//     for (size_t i = 0; i < blocks.size(); ++i) {
+//         for (size_t j = 0; j < 4 && total_lines_printed < lines_to_read; ++j) {
+//             size_t mem_line = address + total_lines_printed;
+//             std::cout << "Línea " << mem_line << ": " << blocks[i][j] << "\n";
+//             ++total_lines_printed;
+//         }
+//     }
 
-    try {
-        Message msg = convert_to_message(memoria, index);
-
-        std::cout << "Mensaje decodificado:\n";
-        std::cout << msg.to_string() << std::endl;
-        std::cout << static_cast<int>(msg.get_operation())  << std::endl;
-
-
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
-
-    return 0;
+//     return 0;
 }
