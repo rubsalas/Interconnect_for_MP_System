@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+*.txt
+
+# Program
+.vscode
+
+Program/config/assemblers/*
+Program/config/binaries/*
+Program/config/caches/*
+Program/config/instruction_memories/*
+Program/config/shared_memory/*
+
+Program/interconnect_sim
