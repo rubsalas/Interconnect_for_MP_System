@@ -192,7 +192,7 @@ void System::pe_execution_cycle(int pe_id) {
         // Actualizamos el tracker local
         last_step = current_step_;
 
-        // —— 3) CHEQUEO DE RESPUESTA —— 
+        // —— 4) CHEQUEO DE RESPUESTA —— 
         if (pe.get_response_state() == PEResponseState::WAITING) {
 
             if (interconnect_->has_response(pe_id)) {
@@ -240,9 +240,14 @@ void System::pe_execution_cycle(int pe_id) {
                             << "] Procesado INV_LINE (línea " << resp.get_cache_line()
                             << "), enviado INV_ACK con bid=" << resp.get_broadcast_id() << "\n";
 
+                    /* State check */
+                    //if(pe.get_actual_message().get_operation() == Operation::BROADCAST_INVALIDATE) {
+                    pe.set_response_state(PEResponseState::WAITING);
+                    //}
+
                 }
 
-                // 2) OTROS TIPOS DE RESPUESTA (READ_RESP, WRITE_RESP, INV_COMPLETE…)
+                // 2) CASO READ_RESP
                 else if (resp.get_operation() == Operation::READ_RESP) {
                     // Por ahora solo imprimimos información básica
                     std::cout << "[PE " << pe_id << "] READ_RESP recibido:\n"
@@ -259,34 +264,41 @@ void System::pe_execution_cycle(int pe_id) {
                         }
                     }
 
+                    // Escribe en cache quemado en 0 lol, sorry profe
+                    cache.write_cache_lines(pe_id, resp.get_start_line(), resp.get_data());
+
+                    /* Check PE states */
+                    pe.set_response_state(PEResponseState::COMPLETED);
+                    pe.set_state(PEState::IDLE);
+
+                // 3) CASO WRITE_RESP
                 } else if (resp.get_operation() == Operation::WRITE_RESP) {
                     std::cout << "[PE " << pe_id << "] WRITE_RESP recibido:\n"
                             << "    Dirección escrita: 0x" << std::hex << resp.get_address() << std::dec << "\n"
                             << "    Estado (status): 0x" << std::hex << resp.get_status() << std::dec << "\n";
 
+                    /* Check PE states */
+                    pe.set_response_state(PEResponseState::COMPLETED);
+                    pe.set_state(PEState::IDLE);
+
+                // 4) CASO INV_COMPLETE
                 } else if (resp.get_operation() == Operation::INV_COMPLETE) {
                     std::cout << "[PE " << pe_id << "] INV_COMPLETE recibido:\n"
                             << "    Broadcast ID: " << resp.get_broadcast_id() << "\n"
                             << "    Línea inválidada confirmada por todos los PEs.\n";
-                }
 
-                /* INV_LINE no es la respuesta que está esperando el PE*/
-                if (resp.get_operation() != Operation::INV_LINE) {
+                    /* Check PE states */
                     pe.set_response_state(PEResponseState::COMPLETED);
                     pe.set_state(PEState::IDLE);
                 }
 
-                if(resp.get_operation() == Operation::INV_LINE 
-                    && pe.get_actual_message().get_operation() == Operation::BROADCAST_INVALIDATE) {
-                        pe.set_response_state(PEResponseState::WAITING);
-                    }
-
+            } else {
+                std::cout << "[PE " << pe_id << "] Waiting for response (?)"
+                          << " - PC: " << pe.get_pc() << "\n";
             }
             
         }
 
-
-        // TODO: Revisar porque puede que hagan falta respuestas!
         // —————— 2) FINISHED POR PC FUERA DE RANGO ——————
         // Si el PC ya no apunta a ninguna instrucción válida, terminamos
         if (pe.get_pc() >= total_instr && interconnect_->all_queues_empty()) {
@@ -300,7 +312,7 @@ void System::pe_execution_cycle(int pe_id) {
 
 
         /* Cuando el PE este IDLE puede obtener una nueva instruccion */
-        if (pe.get_state() == PEState::IDLE) {
+        if (pe.get_state() == PEState::IDLE && pe.get_pc() < total_instr) {
 
             // —————— 4) FETCH: Obtenemos la instrucción actual ——————
             std::cout << "[PE " << pe.get_id() << "] State=IDLE. Getting new instruction...\n";
@@ -379,9 +391,13 @@ void System::pe_execution_cycle(int pe_id) {
         /* Cuando el PE este IDLE puede obtener una nueva instruccion */
         else if (pe.get_state() == PEState::STALLED) {
 
+
+            // El estado de respuesta del PE seria WAITING ya que esta esperando una respuesta
+            pe.set_response_state(PEResponseState::WAITING);
             std::cout << "[PE " << pe_id << "] state = STALLED. Awaiting response.\n";
 
         } else {
+            pe.set_response_state(PEResponseState::WAITING);
             // Debug: mostramos nuevo PC
             std::cout << "[PE " << pe_id 
                     << "]  estado " << pe.state_to_string() << " (?).\n";
@@ -512,7 +528,7 @@ void System::interconnect_execution_cycle() {
                 uint32_t   status    = 0x1;                  // OK por defecto
 
                 // 3) Leemos del SharedMemory
-                std::vector<std::vector<std::string>> memory_data;  // TODO: FIX!
+                std::vector<std::vector<std::uint8_t>> memory_data;
                 try {
                     memory_data = shared_memory_->read_shared_memory(address, size);
                 } catch (const std::exception& e) {
@@ -533,7 +549,7 @@ void System::interconnect_execution_cycle() {
                     /*start_line=*/0,
                     /*cache_line=*/0,
                     /*status=*/status,
-                    /*data=*/{} // TODO: // TODO: FIX! ACTUALIZAR PAYLOAD LUEGO DE ARREGLAR FUNCIONES
+                    /*data=*/memory_data
                 );
 
                 // 6) Calculamos y asignamos la latencia

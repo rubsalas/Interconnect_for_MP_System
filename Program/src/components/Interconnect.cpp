@@ -46,6 +46,20 @@ Message Interconnect::pop_response(int pe_id) {
     throw std::runtime_error("pop_response: no pending response for PE " + std::to_string(pe_id));
 }
 
+
+void Interconnect::push_response(const Message& msg) {
+    // 1) Bloqueamos el mutex para proteger out_queue_
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+
+    // 2) Encolamos el mensaje al final
+    out_queue_.push_back(msg);
+
+    // 3) Debug: mostramos que encolamos una respuesta
+    std::cout << "[Interconnect] Queued response for PE "
+              << msg.get_dest_id() << ": "
+              << msg.to_string() << "\n";
+}
+
 /* ------------------------------------- Message Handling -------------------------------------- */
 
 bool Interconnect::all_queues_empty() const {

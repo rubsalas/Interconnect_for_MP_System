@@ -109,7 +109,7 @@ public:
     * @note En caso de error al abrir el fichero, se imprime un mensaje de error y se retorna \ 
     *       un vector vacío.
     */
-    std::vector<std::vector<std::string>> read_shared_memory(size_t address,
+std::vector<std::vector<std::uint8_t>> read_shared_memory(size_t address,
                                                             size_t size_bytes);
 
 /* --------------------------------------------------------------------------------------------- */

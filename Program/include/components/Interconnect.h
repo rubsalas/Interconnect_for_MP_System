@@ -69,6 +69,16 @@ public:
      */
     Message pop_response(int pe_id);
 
+    /**
+     * @brief Encola un mensaje de respuesta para un PE.
+     *
+     * Protege con mutex el acceso a la cola de salida para que varios hilos
+     * puedan llamar a este método concurrentemente de forma segura.
+     *
+     * @param msg Mensaje de respuesta a encolar en out_queue_.
+     */
+    void push_response(const Message& msg);
+
 /* ------------------------------------- Message Handling -------------------------------------- */
 
     /**
