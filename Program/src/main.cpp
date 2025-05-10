@@ -189,19 +189,39 @@ void initialize_system() {
               << (scheme == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << " arbitration scheme.\n";
 }
 
-/**
- * @brief Simula un número fijo de ciclos de operación.
- * TODO
- */
 void run_simulation() {
-	if (pe_count == 0 || !interconnect_system) {
-		std::cout << "\n[Sim] System not initialized. Please initialize first.\n";
-		return;
-	}
+    if (pe_count == 0 || !interconnect_system) {
+        std::cout << "\n[Sim] System not initialized. Please initialize first.\n";
+        return;
+    }
 
-	std::cout << "\n[Sim] Starting simulation with " << pe_count << " PEs...\n";
+    // 1) Pregunta al usuario
+    int mode = -1;
+    while (true) {
+        std::cout << "\n[Sim] Select run mode:\n"
+                  << "  1) Stepping (press Enter each cycle)\n"
+                  << "  0) Continuous (auto-run)\n"
+                  << "Choice [1/0]: ";
+        if (!(std::cin >> mode)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "[Error] Invalid input. Please enter 1 or 0.\n";
+            continue;
+        }
+        if (mode == 0 || mode == 1) break;
+        std::cout << "[Error] Enter 1 or 0.\n";
+    }
+    // Limpiamos el newline antes de futuros getline
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-	interconnect_system->run();
+    // 2) Configura el sistema
+    interconnect_system->set_stepping_enabled(mode == 1);
+
+    // 3) Arranca la simulación
+    std::cout << "\n[Sim] Starting simulation with " << pe_count 
+              << " PEs in " << (mode ? "stepping" : "continuous") 
+              << " mode...\n\n";
+    interconnect_system->run();
 }
 
 /**

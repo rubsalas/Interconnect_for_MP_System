@@ -122,11 +122,28 @@ public:
      */
     uint32_t get_latency() const;
 
+    /// @brief Suma a la latencia existente.
+    void increment_latency(uint32_t cycles);
+
     /**
      * @brief Decrementa la latencia restante.
      * @param cycles Ciclos a restar (por defecto 1). Nunca baja de 0.
      */
     void decrement_latency(uint32_t cycles = 1);
+
+/********************/
+
+    /// @brief Devuelve la latencia acumulada de este mensaje.
+    uint32_t get_full_latency() const;
+
+    /// @brief Fija la latencia total de este mensaje.
+    void set_full_latency(uint32_t latency);
+
+    /// @brief Suma @p delta ciclos a la latencia existente.
+    void increment_full_latency(uint32_t delta);
+
+    /// @brief Resta @p delta ciclos de la latencia (sin bajar de 0).
+    void decrement_full_latency(uint32_t delta = 1);
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -153,6 +170,7 @@ private:
     std::vector<std::vector<uint8_t>> data_;    /**< Payload de datos. */
 
     uint32_t latency_{0};           /**< Latencia restante en ciclos. */
+    uint32_t full_latency_{0};      /**< Latencia total de la instruccion */
 
     uint32_t broadcast_id_{0};      /**< ID del Broadcast, si es un Message de esos. */
 };

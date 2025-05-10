@@ -56,10 +56,36 @@ uint32_t Message::get_latency() const {
     return latency_;
 }
 
+void Message::increment_latency(uint32_t cycles) {
+    latency_ += cycles;
+}
+
 void Message::decrement_latency(uint32_t cycles) {
     // Evitamos underflow
     if (cycles >= latency_) latency_ = 0;
     else                    latency_ -= cycles;
+}
+
+/************************/
+
+uint32_t Message::get_full_latency() const {
+    return full_latency_;
+}
+
+void Message::set_full_latency(uint32_t latency) {
+    full_latency_ = latency;
+}
+
+void Message::increment_full_latency(uint32_t delta) {
+    full_latency_ += delta;
+}
+
+void Message::decrement_full_latency(uint32_t delta) {
+    if (delta >= full_latency_) {
+        full_latency_ = 0;
+    } else {
+        full_latency_ -= delta;
+    }
 }
 
 /* --------------------------------------------------------------------------------------------- */

@@ -8,8 +8,8 @@
 
 /* ---------------------------------------- Constructor ---------------------------------------- */
 
-System::System(int num_pes, ArbitScheme scheme)
-    : total_pes_(num_pes), scheme_(scheme) {
+System::System(int num_pes, ArbitScheme scheme, bool stepping_enabled)
+    : total_pes_(num_pes), scheme_(scheme), stepping_enabled_(stepping_enabled){
     pes_.reserve(total_pes_);
     std::cout << "\n[System] Created with " << total_pes_ << " PEs and "
               << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY") << " scheme.\n";   
@@ -97,6 +97,10 @@ void System::initialize_shared_memory() {
 
 /* ----------------------------------------- Execution ----------------------------------------- */
 
+void System::set_stepping_enabled(bool enable) {
+    stepping_enabled_ = enable;
+}
+
 void System::step() {
     {
         // Bloqueamos el mutex solo el tiempo de incrementar
@@ -108,7 +112,6 @@ void System::step() {
 }
 
 void System::run() {
-
     // 1) Lanzar hilos para cada PE
     for (int i = 0; i < total_pes_; ++i) {
         start_pe_thread(i);
@@ -117,15 +120,21 @@ void System::run() {
     // 2) Lanzar hilo del Interconnect
     start_interconnect_thread();
 
-    // 3) Bucle de stepping: esperar Enter y avanzar un ciclo
-    std::string line;
-    while (!all_pes_finished() || interconnect_->get_state() != ICState::FINISHED) {
-        // Pedir al usuario que avance
-        std::cout << "\nPRESS [Enter] TO ADVANCE ONE CYCLE...\n\n";
-        std::getline(std::cin, line);
-
-        // Disparar un nuevo paso
-        step();
+    // 3) Bucle principal: stepping o auto-run
+    if (stepping_enabled_) {
+        std::string line;
+        while (!all_pes_finished() || interconnect_->get_state() != ICState::FINISHED) {
+            std::cout << "\nPRESS [Enter] TO ADVANCE ONE CYCLE…\n";
+            std::getline(std::cin, line);
+            step();
+        }
+    } else {
+        // Auto-run: ejecuta step() en bucle hasta terminar
+        while (!all_pes_finished() || interconnect_->get_state() != ICState::FINISHED) {
+            step();
+            // opcional: pequeña pausa para no saturar la CPU
+            // std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
     }
 
     // 4) Esperar a que todos los PEs terminen
@@ -203,6 +212,9 @@ void System::pe_execution_cycle(int pe_id) {
                 // 1) Sacamos UNA respuesta para este PE
                 Message resp = interconnect_->pop_response(pe_id);
 
+                // 6) Calculamos y asignamos la latencia
+                resp.increment_full_latency(10);
+
                 // 2) El PE la procesa
                 std::cout << "[PE " << pe_id << "] Received response: "
                         << resp.to_string() << "\n";
@@ -229,9 +241,11 @@ void System::pe_execution_cycle(int pe_id) {
 
                     inv_ack.set_broadcast_id(resp.get_broadcast_id());
 
-                    // TODO: Calcular su latencia y asignarla (!)
-                    // TESTING ONLY
-                    inv_ack.set_latency(2);
+                    // 6) Calculamos y asignamos la latencia
+                    resp.increment_full_latency(6 + 3 + 4);
+
+                    /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
+                    log_message_metrics(resp);
 
                     // Se envia al in_queue del Interconnect como un mensaje asincrono
                     interconnect_->push_message(inv_ack);
@@ -267,6 +281,12 @@ void System::pe_execution_cycle(int pe_id) {
                     // Escribe en cache quemado en 0 lol, sorry profe
                     cache.write_cache_lines(pe_id, resp.get_start_line(), resp.get_data());
 
+                    // Calculamos y asignamos la latencia
+                    resp.increment_full_latency(4 * resp.get_size());
+
+                    /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
+                    log_message_metrics(resp);
+
                     /* Check PE states */
                     pe.set_response_state(PEResponseState::COMPLETED);
                     pe.set_state(PEState::IDLE);
@@ -277,6 +297,12 @@ void System::pe_execution_cycle(int pe_id) {
                             << "    Dirección escrita: 0x" << std::hex << resp.get_address() << std::dec << "\n"
                             << "    Estado (status): 0x" << std::hex << resp.get_status() << std::dec << "\n";
 
+                    // Calculamos y asignamos la latencia
+                    resp.increment_full_latency(5);
+
+                    /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
+                    log_message_metrics(resp);
+
                     /* Check PE states */
                     pe.set_response_state(PEResponseState::COMPLETED);
                     pe.set_state(PEState::IDLE);
@@ -286,6 +312,12 @@ void System::pe_execution_cycle(int pe_id) {
                     std::cout << "[PE " << pe_id << "] INV_COMPLETE recibido:\n"
                             << "    Broadcast ID: " << resp.get_broadcast_id() << "\n"
                             << "    Línea inválidada confirmada por todos los PEs.\n";
+
+                    // Calculamos y asignamos la latencia
+                    resp.increment_full_latency(5);
+
+                    /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
+                    log_message_metrics(resp);
 
                     /* Check PE states */
                     pe.set_response_state(PEResponseState::COMPLETED);
@@ -327,6 +359,9 @@ void System::pe_execution_cycle(int pe_id) {
             // 4) Almacenamos el mensaje en el PE (para debug o uso interno)
             pe.set_actual_message(actual_pe_message);
 
+            /* Incremento de latencia: Fetch Instr*/
+            pe.get_actual_message().set_full_latency(3); // Ya que sera la primera vez que se agrega
+
             // Cambiamos el estado a RUNNING, porque ya tenemos la petición lista
             pe.set_state(PEState::RUNNING);
 
@@ -358,6 +393,9 @@ void System::pe_execution_cycle(int pe_id) {
                 // 3) Stash the blocks into the Message payload
                 pe.get_actual_message().set_data(blocks);
 
+                /* Incremento de latencia: Cache Read */
+                pe.get_actual_message().increment_full_latency(4 * count); 
+
                 // (Optional) debug print to verify
                 std::cout << "[PE " << pe_id 
                         << "] Cached data attached to message (" 
@@ -366,6 +404,10 @@ void System::pe_execution_cycle(int pe_id) {
 
             // —————— 7) ISSUE: Enviamos el mensaje al Interconnect ——————
             std::cout << "[PE " << pe.get_id() << "] Sending message to Interconnect...\n";
+
+            /* Incremento de latencia: Send Inter */
+            pe.get_actual_message().increment_full_latency(5);
+
             interconnect_->push_message(pe.get_actual_message());
 
             // 6) Cambiar el estado del PE a STALLED ya que se acaba de enviar la instruccion a ejecutar
@@ -517,6 +559,18 @@ void System::interconnect_execution_cycle() {
             /* Extrae el siguiente Message de in_queue para finalizar su espera por procesamiento */
             Message next_msg = interconnect_->pop_next();
 
+            /* Incremento de latencia: Wait Queue*/
+            if (scheme_ == ArbitScheme::PRIORITY) {
+                uint32_t latency_increment = 5/*0*/ * (next_msg.get_num_lines() + next_msg.get_size()) * (1/next_msg.get_qos());
+                next_msg.increment_full_latency(latency_increment);
+                next_msg.set_latency(latency_increment);
+            } else {
+                uint32_t latency_increment = 5/*0*/ * (next_msg.get_num_lines() + next_msg.get_size());
+                next_msg.increment_full_latency(latency_increment);
+                next_msg.set_latency(latency_increment);
+            }
+            
+
             // 3) DECISION: ¿qué tipo de operación es?
             if (next_msg.get_operation() == Operation::READ_MEM) {
                 // → Petición de lectura: iremos a memoria principal
@@ -552,10 +606,14 @@ void System::interconnect_execution_cycle() {
                     /*data=*/memory_data
                 );
 
+                // Pasar latencia del Message de Instruccion al de Respuesta
+                read_resp.set_full_latency(next_msg.get_full_latency()* 0.01);
+                read_resp.set_latency(next_msg.get_latency()* 0.01);
+
                 // 6) Calculamos y asignamos la latencia
-                // TODO: Calcular su latencia y asignarla (!)
-                // TESTING ONLY
-                read_resp.set_latency(12);
+                uint32_t incr_lat = (6/*0*/ + size) * size;
+                read_resp.increment_full_latency(incr_lat);
+                read_resp.increment_latency(incr_lat);
 
                 // 7) Encolamos en la etapa media para simular la latencia
                 interconnect_->push_mid_processing(read_resp);
@@ -565,6 +623,7 @@ void System::interconnect_execution_cycle() {
                 std::cout << "[IC] WRITE_MEM: preparando escritura en SharedMemory\n";
 
                 // 1) Extraemos dirección y bloque de datos
+                uint32_t   num_lines = next_msg.get_num_lines(); 
                 uint64_t   address   = next_msg.get_address();
                 auto       blocks    = next_msg.get_data();  // vector<vector<uint8_t>>
                 uint32_t   status    = 0x1;                  // OK por defecto
@@ -587,16 +646,21 @@ void System::interconnect_execution_cycle() {
                     /*addr=*/address,
                     /*qos=*/next_msg.get_qos(),
                     /*size=*/0,
-                    /*num_lines=*/0,
+                    /*num_lines=*/next_msg.get_num_lines(),
                     /*start_line=*/0,
                     /*cache_line=*/0,
                     /*status=*/status,
                     /*data=*/{}                     // sin payload
                 );
 
-                // 6) TODO: Calcular su latencia y asignarla (!)
-                // TESTING ONLY
-                write_resp.set_latency(18);
+                // Pasar latencia del Message de Instruccion al de Respuesta
+                write_resp.set_full_latency(next_msg.get_full_latency() * 0.01);
+                write_resp.set_latency(next_msg.get_latency() * 0.01);
+
+                // 6) Calculamos y asignamos la latencia
+                uint32_t incr_lat = (8/*0*/ + num_lines) * num_lines;
+                write_resp.increment_full_latency(incr_lat);
+                write_resp.increment_latency(incr_lat);
 
                 // 7) Encolamos en la etapa media para simular la latencia
                 interconnect_->push_mid_processing(write_resp);
@@ -630,13 +694,17 @@ void System::interconnect_execution_cycle() {
                         /* data */ {}         // sin payload
                     );
 
+                    // Pasar latencia del Message de Instruccion al de Respuesta
+                    inv_line_msg.set_full_latency(next_msg.get_full_latency());
+                    inv_line_msg.set_latency(next_msg.get_latency());
+
                     // 2) Se clava el broadcast_id en el Message para que se propague
                     inv_line_msg.set_broadcast_id(bid);
 
-                    // 2) Asignar latencia de invalidación
-                    // TODO: Calcular su latencia y asignarla (!)
-                    // TESTING ONLY
-                    inv_line_msg.set_latency(8);
+                    // 6) Calculamos y asignamos la latencia
+                    uint32_t incr_lat = 6;
+                    inv_line_msg.increment_full_latency(incr_lat);
+                    inv_line_msg.increment_latency(incr_lat);
 
                     // 3) Encolamos en la etapa media para simular la latencia
                     interconnect_->push_mid_processing(inv_line_msg);
@@ -697,12 +765,16 @@ void System::interconnect_execution_cycle() {
                         /*data=*/{}
                     );
 
+                    // Pasar latencia del Message de Instruccion al de Respuesta
+                    inv_complete.set_full_latency(5 * total_pes_);
+                    inv_complete.set_latency(5 * total_pes_);
+
                     inv_complete.set_broadcast_id(bid);
 
-                    // 7) Asignar latencia
-                    // TODO: Calcular su latencia y asignarla (!)
-                    // TESTING ONLY
-                    inv_complete.set_latency(6);
+                    // 6) Calculamos y asignamos la latencia
+                    uint32_t incr_lat = 5;
+                    inv_complete.increment_full_latency(incr_lat);
+                    inv_complete.increment_latency(incr_lat);
 
                     // 8) Encolamos en la etapa media para simular la latencia
                     interconnect_->push_mid_processing(inv_complete);
@@ -768,6 +840,51 @@ void System::report_statistics() const {
     std::cout << "[System] (Placeholder)\n";
 }
 
+// Helper interno para convertir la operación a texto
+const char* System::operation_to_string(Operation op) {
+    switch (op) {
+        case Operation::READ_MEM:             return "READ_MEM";
+        case Operation::WRITE_MEM:            return "WRITE_MEM";
+        case Operation::BROADCAST_INVALIDATE: return "BROADCAST_INVALIDATE";
+        case Operation::INV_LINE:             return "INV_LINE";
+        case Operation::INV_ACK:              return "INV_ACK";
+        case Operation::INV_COMPLETE:         return "INV_COMPLETE";
+        case Operation::READ_RESP:            return "READ_RESP";
+        case Operation::WRITE_RESP:           return "WRITE_RESP";
+        case Operation::END:                  return "END";
+        default:                              return "UNDEFINED";
+    }
+}
+
+void System::log_message_metrics(const Message& msg,
+                                 const std::string& filename) const {
+    // Abrir en modo append
+    std::ofstream out(filename, std::ios::app);
+    if (!out.is_open()) {
+        throw std::runtime_error("No se pudo abrir el archivo de log: " + filename);
+    }
+
+    // Recopilar datos
+    int        pe_id         = msg.get_dest_id();
+    uint8_t    qos           = msg.get_qos();
+    const char* op_str       = operation_to_string(msg.get_operation());
+    uint32_t   size_bytes    = msg.get_size() * 4;
+    uint32_t   num_bytes     = msg.get_num_lines() * 16;
+    uint32_t   latency       = msg.get_full_latency();
+    // uint32_t   bandwidth     = msg.get_bandwidth();
+
+    // Escribir línea de log
+    out << " " << pe_id << "  "
+        << " 0x" << std::hex << static_cast<int>(qos) << std::dec << "  "
+        << " " << op_str << "  "
+        << " " << size_bytes << "  "
+        << " " << num_bytes << "  "
+        << " " << latency << " \n";
+        // << "[" << bandwidth << "]\n";
+
+    out.close();
+}
+
 /* --------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------- Testing -------------------------------------------- */
@@ -790,102 +907,10 @@ void System::debug_print() const {
 }
 
 
-/**
- * @brief Carga instrucciones binarias desde un archivo, las decodifica a objetos Message
- *        y los imprime en consola y en un archivo de salida.
- *
- * Esta función interpreta cada línea del archivo como una instrucción de 64 bits, 
- * donde el bit más significativo es el bit 63. Se ignoran los bits 63–43. A partir
- * de los bits restantes, se extraen los campos según el tipo de instrucción (WRITE_MEM,
- * READ_MEM, BROADCAST_INVALIDATE) y se construyen objetos Message. 
- * 
- * Cada mensaje decodificado se imprime en consola (en formato compacto y detallado)
- * y se guarda en el archivo mensajes_generados.txt.
- *
- * @param file_path Ruta al archivo que contiene instrucciones binarias en texto plano.
- * 
- * @note Se espera que cada línea del archivo contenga exactamente 64 caracteres ('0' o '1').
- * 
- * @warning Las líneas con menos de 64 bits serán ignoradas.
- */
-
 void System::system_test_G(const std::string& file_path) {
 	std::cout << "\n[TEST] Starting System Test G...\n";
-    std::ifstream infile(file_path);
-    std::ofstream outfile("mensajes_generados.txt");
 
-    std::string line;
-    int mensajes_generados = 0;
-
-    if (!infile) {
-        std::cerr << "[System] Error: could not open " << file_path << "\n";
-        return;
-    }
-
-    outfile << "[System] Decoded messages from: " << file_path << "\n";
-
-    while (std::getline(infile, line)) {
-        if (line.length() < 64) {
-            std::cerr << "[Warning] Ignoring line with length < 64: " << line << "\n";
-            continue;
-        }
-
-        std::string opcode = line.substr(21, 2);  // Bits 42–41
-
-        Message msg(Operation::UNDEFINED);
-
-        if (opcode == "00") { // WRITE_MEM
-            msg = Message(
-                Operation::WRITE_MEM,
-                std::bitset<5>(line.substr(23, 5)).to_ulong(),     // src: bits 40–36
-                0,
-                std::bitset<16>(line.substr(28, 16)).to_ulong(),   // address: bits 35–20
-                std::bitset<4>(line.substr(60, 4)).to_ulong(),     // qos: bits 3–0
-                0,
-                std::bitset<8>(line.substr(44, 8)).to_ulong(),     // num_cache_lines: bits 19–12
-                std::bitset<8>(line.substr(52, 8)).to_ulong(),     // start_cache_line: bits 11–4
-                0, 0, {}
-            );
-
-        } else if (opcode == "01") { // READ_MEM
-            msg = Message(
-                Operation::READ_MEM,
-                std::bitset<5>(line.substr(23, 5)).to_ulong(),
-                0,
-                std::bitset<16>(line.substr(28, 16)).to_ulong(),
-                std::bitset<4>(line.substr(60, 4)).to_ulong(),
-                std::bitset<8>(line.substr(44, 8)).to_ulong(),
-                0, 0, 0, 0, {}
-            );
-
-        } else if (opcode == "10") { // BROADCAST_INVALIDATE
-            msg = Message(
-                Operation::BROADCAST_INVALIDATE,
-                std::bitset<5>(line.substr(23, 5)).to_ulong(),
-                0,
-                0,
-                std::bitset<4>(line.substr(60, 4)).to_ulong(),
-                0, 0, 0,
-                std::bitset<8>(line.substr(36, 8)).to_ulong(),     // cache_lines (bits 27–20)
-                0, {}
-            );
-
-        } else {
-            std::cerr << "[Warning] Opcode no reconocido: " << opcode << "\n";
-            continue;
-        }
-
-        // Imprimir en consola y escribir en archivo
-        std::cout << "[DEBUG] Mensaje creado: " << msg.to_string() << std::endl;
-        outfile << msg.to_string() << "\n";
-        mensajes_generados++;
-    }
-
-    outfile << "[System] Message decoding complete.\n";
-    outfile << "[System] Total messages decoded: " << mensajes_generados << "\n";
-    std::cout << "[System] Total messages decoded: " << mensajes_generados << "\n";
-
-    outfile.close();
+    std::cout << "\n[TEST] System Test Complete.\n";
 }
     
 

@@ -23,12 +23,18 @@ public:
      * @param num_pes Cantidad de processing elements a instanciar.
      * @param scheme  Esquema de arbitraje para el Interconnect (FIFO o PRIORITY).
      */
-    System(int num_pes, ArbitScheme scheme);
+    System(int total_pes, ArbitScheme scheme, bool stepping_enabled = true);
 
     /** @brief Inicializa PEs, caches, interconnect y memoria compartida. */
     void initialize();
 
 /* ----------------------------------------- Execution ----------------------------------------- */
+
+    /**  
+     * @brief Habilita o deshabilita el modo stepping.
+     * @param enable true = cada ciclo espera al usuario, false = corre automáticamente.
+     */
+    void set_stepping_enabled(bool enable);
 
     /** @brief Arranca todos los hilos de PEs y del Interconnect. */
     void run();
@@ -39,6 +45,32 @@ public:
 
     /** @brief Reporta estadísticas finales tras la simulación. */
     void report_statistics() const;
+
+    /**
+     * @brief Convierte un Operation a cadena.
+     * @param op Operación a convertir.
+     * @return C-string con el nombre de la operación.
+     */
+    static const char* operation_to_string(Operation op);
+
+    /**
+     * @brief Registra en un archivo de texto las métricas de un mensaje.
+     *
+     * Cada llamada añade una línea al final de @p filename con el formato:
+     *   [PE_id] [QoS] [Operation] [size_bytes] [num_bytes_lines] [full_latency] [bandwidth]
+     *
+     * - size_bytes       = msg.get_size() * 4  
+     * - num_bytes_lines  = msg.get_num_lines() * 16  
+     * - full_latency     = msg.get_full_latency()  
+     * - bandwidth        = msg.get_bandwidth()
+     *
+     * @param msg       Mensaje cuyas métricas se van a loguear.
+     * @param filename  Ruta al archivo de log (se abre en modo append).  
+     *                  Por defecto "latency_log.txt".
+     * @throws std::runtime_error si no se puede abrir el archivo.
+     */
+    void log_message_metrics(const Message& msg,
+                             const std::string& filename = "latency_log.txt") const;
 
 /* --------------------------------------------------------------------------------------------- */
 
@@ -63,6 +95,7 @@ private:
     // --------------------------------------------------
     // Stepping control
     // --------------------------------------------------
+    bool stepping_enabled_;     /**< true = stepping, false = auto-run */
     std::mutex                      step_mtx_;              /**< Protege current_step_. */
     std::condition_variable         step_cv_;               /**< Despierta hilos en cada step. */
     int                             current_step_{0};       /**< Contador de pasos completados. */
