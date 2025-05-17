@@ -268,8 +268,19 @@ void System::pe_execution_cycle(int pe_id) {
                         pe.set_response_state(PEResponseState::WAITING);
                     } else {
                         /* Check PE states */
-                        pe.set_response_state(PEResponseState::COMPLETED);
-                        pe.set_state(PEState::IDLE);
+                        // Reemplazo
+                        bool more_out = interconnect_->has_pending_responses(pe_id);
+                        bool more_mid = interconnect_->has_pending_mid_processing(pe_id);
+
+                        if (more_out || more_mid) {
+                            // Aún hay respuestas para ti, sigues “atrapado”
+                            pe.set_state(PEState::STALLED);
+                            pe.set_response_state(PEResponseState::WAITING);
+                        } else {
+                            // Ya no queda ninguna respuesta pendiente
+                            pe.set_response_state(PEResponseState::COMPLETED);
+                            pe.set_state(PEState::IDLE);
+                        }
                     }
 
                 }
@@ -305,8 +316,19 @@ void System::pe_execution_cycle(int pe_id) {
                     log_message_metrics(resp);
 
                     /* Check PE states */
-                    pe.set_response_state(PEResponseState::COMPLETED);
-                    pe.set_state(PEState::IDLE);
+                    // Reemplazo
+                    bool more_out = interconnect_->has_pending_responses(pe_id);
+                    bool more_mid = interconnect_->has_pending_mid_processing(pe_id);
+
+                    if (more_out || more_mid) {
+                        // Aún hay respuestas para ti, sigues “atrapado”
+                        pe.set_state(PEState::STALLED);
+                        pe.set_response_state(PEResponseState::WAITING);
+                    } else {
+                        // Ya no queda ninguna respuesta pendiente
+                        pe.set_response_state(PEResponseState::COMPLETED);
+                        pe.set_state(PEState::IDLE);
+                    }
 
                 // 3) CASO WRITE_RESP
                 } else if (resp.get_operation() == Operation::WRITE_RESP) {
@@ -325,8 +347,19 @@ void System::pe_execution_cycle(int pe_id) {
                     log_message_metrics(resp);
 
                     /* Check PE states */
-                    pe.set_response_state(PEResponseState::COMPLETED);
-                    pe.set_state(PEState::IDLE);
+                    // Reemplazo
+                    bool more_out = interconnect_->has_pending_responses(pe_id);
+                    bool more_mid = interconnect_->has_pending_mid_processing(pe_id);
+
+                    if (more_out || more_mid) {
+                        // Aún hay respuestas para ti, sigues “atrapado”
+                        pe.set_state(PEState::STALLED);
+                        pe.set_response_state(PEResponseState::WAITING);
+                    } else {
+                        // Ya no queda ninguna respuesta pendiente
+                        pe.set_response_state(PEResponseState::COMPLETED);
+                        pe.set_state(PEState::IDLE);
+                    }
 
                 // 4) CASO INV_COMPLETE
                 } else if (resp.get_operation() == Operation::INV_COMPLETE) {
@@ -345,8 +378,19 @@ void System::pe_execution_cycle(int pe_id) {
                     log_message_metrics(resp);
 
                     /* Check PE states */
-                    pe.set_response_state(PEResponseState::COMPLETED);
-                    pe.set_state(PEState::IDLE);
+                    // Reemplazo
+                    bool more_out = interconnect_->has_pending_responses(pe_id);
+                    bool more_mid = interconnect_->has_pending_mid_processing(pe_id);
+
+                    if (more_out || more_mid) {
+                        // Aún hay respuestas para ti, sigues “atrapado”
+                        pe.set_state(PEState::STALLED);
+                        pe.set_response_state(PEResponseState::WAITING);
+                    } else {
+                        // Ya no queda ninguna respuesta pendiente
+                        pe.set_response_state(PEResponseState::COMPLETED);
+                        pe.set_state(PEState::IDLE);
+                    }
                 }
 
             } else {
@@ -912,9 +956,18 @@ void System::interconnect_execution_cycle() {
         interconnect_->debug_print_out_queue();
 
 
-        // ———————— 5) VOLVER A IDLE ————————
-        // Después de mover un mensaje, retomamos IDLE hasta el próximo step
-        interconnect_->set_state(ICState::IDLE);
+        // ———————— 5) VOLVER A IDLE o marcar FINISHED ————————
+        if (all_pes_finished() && interconnect_->all_queues_empty()) {
+            // Si todos los PEs ya completaron y no queda nada en ninguna cola:
+            interconnect_->set_state(ICState::FINISHED);
+        } else {
+            // En cualquier otro caso, sólo volvemos a IDLE si no hay mensajes pendientes
+            // (mid + out)
+            if (interconnect_->all_queues_empty()) {
+                interconnect_->set_state(ICState::IDLE);
+            }
+            // si todavía quedan mensajes, mantenemos el estado en PROCESSING
+        }
     }
 
     std::cout << "[System] Interconnect Execution Cycle (thread) ending...\n";

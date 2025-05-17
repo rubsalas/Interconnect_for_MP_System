@@ -278,11 +278,13 @@ private:
     ICState             state_{ICState::IDLE};  /**< Estado del Interconnect */
     
     std::deque<Message> in_queue_;              /**< Cola de Messages entrantes */
-    mutable std::mutex  in_queue_mtx_;          /**< Protege in_queue_ contra accesos concurrentes. */
+    // mutable std::mutex  in_queue_mtx_;          /**< Protege in_queue_ contra accesos concurrentes. */
     
     std::deque<Message> mid_processing_queue_;  /**< Cola de Messages en ejecucion */
-    mutable std::mutex  mid_processing_mtx_;    /**< Protege mid_processing_queue_ */
+    // mutable std::mutex  mid_processing_mtx_;    /**< Protege mid_processing_queue_ */
 
     std::deque<Message> out_queue_;             /**< Cola de respuestas salientes */
-    mutable std::mutex  out_queue_mtx_;         /**< Protege out_queue_ */
+    // mutable std::mutex  out_queue_mtx_;         /**< Protege out_queue_ */
+
+    mutable std::mutex queues_mtx_;             /**< Protege todo */
 };

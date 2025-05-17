@@ -27,7 +27,8 @@ uint32_t Interconnect::register_broadcast(int origin_pe) {
 }
 
 bool Interconnect::has_response(int pe_id) const {
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     for (auto const& m : out_queue_) {
         if (m.get_dest_id() == pe_id) return true;
     }
@@ -35,7 +36,8 @@ bool Interconnect::has_response(int pe_id) const {
 }
 
 Message Interconnect::pop_response(int pe_id) {
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     for (auto it = out_queue_.begin(); it != out_queue_.end(); ++it) {
         if (it->get_dest_id() == pe_id) {
             Message m = *it;
@@ -49,7 +51,8 @@ Message Interconnect::pop_response(int pe_id) {
 
 void Interconnect::push_response(const Message& msg) {
     // 1) Bloqueamos el mutex para proteger out_queue_
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
 
     // 2) Encolamos el mensaje al final
     out_queue_.push_back(msg);
@@ -64,9 +67,10 @@ void Interconnect::push_response(const Message& msg) {
 
 bool Interconnect::all_queues_empty() const {
     // 1) Bloquear ambas colas para chequeo consistente
-    std::lock_guard<std::mutex> lock_in(in_queue_mtx_);
-    std::lock_guard<std::mutex> lock_mid(mid_processing_mtx_);
-    std::lock_guard<std::mutex> lock_out(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock_in(in_queue_mtx_);
+    // std::lock_guard<std::mutex> lock_mid(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock_out(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
 
     // 2) Comprobar que todas estén vacías
     return in_queue_.empty() && mid_processing_queue_.empty() && out_queue_.empty();
@@ -79,7 +83,8 @@ bool Interconnect::all_queues_empty() const {
 /* ------------------------------------ */
 
 void Interconnect::push_message(const Message& m) {
-    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
 
     /* Ordenamiento segun esquema de arbitraje */
     if (scheme_ == ArbitScheme::FIFO) {
@@ -104,7 +109,9 @@ void Interconnect::push_message(const Message& m) {
 
 Message Interconnect::pop_next() {
     // 1) Bloqueamos el mutex
-    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
+
     if (in_queue_.empty()) {
         throw std::out_of_range("Interconnect::pop_next(): queue is empty");
     }
@@ -117,7 +124,8 @@ Message Interconnect::pop_next() {
 }
 
 bool Interconnect::in_queue_empty() const {
-    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     return in_queue_.empty();
 }
 
@@ -128,7 +136,8 @@ bool Interconnect::in_queue_empty() const {
 /* ------------------------------------ */
 
 bool Interconnect::has_pending_mid_processing(int pe_id) const {
-    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     return std::any_of(
         mid_processing_queue_.begin(), mid_processing_queue_.end(),
         [pe_id](const Message &m) { return m.get_dest_id() == pe_id; }
@@ -137,7 +146,8 @@ bool Interconnect::has_pending_mid_processing(int pe_id) const {
 
 void Interconnect::push_mid_processing(const Message& m) {
     // 1) Bloqueo para acceso concurrente
-    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     // 2) Encolamos al final de la cola intermedia
     mid_processing_queue_.push_back(m);
     // 3) Debug opcional
@@ -146,7 +156,8 @@ void Interconnect::push_mid_processing(const Message& m) {
 }
 
 Message Interconnect::pop_mid_processing_at(size_t index) {
-    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     if (index >= mid_processing_queue_.size()) {
         throw std::out_of_range("pop_mid_processing_at: index out of range");
     }
@@ -159,12 +170,14 @@ Message Interconnect::pop_mid_processing_at(size_t index) {
 }
 
 bool Interconnect::mid_processing_empty() const {
-    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     return mid_processing_queue_.empty();
 }
 
 size_t Interconnect::mid_processing_size() const {
-    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     return mid_processing_queue_.size();
 }
 
@@ -175,7 +188,8 @@ size_t Interconnect::mid_processing_size() const {
 /* ------------------------------------ */
 
 bool Interconnect::has_pending_responses(int pe_id) const {
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     return std::any_of(
         out_queue_.begin(), out_queue_.end(),
         [pe_id](const Message &m) { return m.get_dest_id() == pe_id; }
@@ -184,7 +198,8 @@ bool Interconnect::has_pending_responses(int pe_id) const {
 
 void Interconnect::push_out_queue(const Message& m) {
     // 1) Bloqueamos el mutex para asegurar acceso exclusivo
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
 
     // 2) Encolado según el esquema de arbitraje
     if (scheme_ == ArbitScheme::FIFO) {
@@ -207,7 +222,8 @@ void Interconnect::push_out_queue(const Message& m) {
 }
 
 Message Interconnect::pop_out_queue_at(size_t index) {
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     if (index >= out_queue_.size()) {
         throw std::out_of_range("pop_out_queue_at: index out of range");
     }
@@ -218,7 +234,8 @@ Message Interconnect::pop_out_queue_at(size_t index) {
 }
 
 bool Interconnect::out_queue_empty() const {
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     return out_queue_.empty();
 }
 
@@ -240,7 +257,8 @@ const std::deque<Message>& Interconnect::get_in_queue() const {
 }
 
 void Interconnect::set_in_queue(const std::deque<Message>& q) {
-    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     in_queue_ = q;
 }
 
@@ -252,11 +270,11 @@ void Interconnect::debug_print() const {
     std::cout << "\n[Interconnect] Debug: num_pes=" << num_pes_
               << ", scheme=" << (scheme_ == ArbitScheme::FIFO ? "FIFO" : "PRIORITY")
               << "\n";
-    // TODO: listar queues o estadísticas básicas aquí.
 }
 
 void Interconnect::debug_print_in_queue() const {
-    std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(in_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
     std::cout << "[Interconnect] Pending requests in in_queue_:\n";
 
     std::deque<Message> copy = in_queue_;
@@ -278,7 +296,8 @@ void Interconnect::debug_print_in_queue() const {
 
 void Interconnect::debug_print_mid_processing_queue() const {
     // 1) Bloqueamos el mutex para proteger la cola
-    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    // std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
 
     // 2) Cabecera para identificar la salida
     std::cout << "[Interconnect] Pending messages in mid_processing_queue_:\n";
@@ -304,7 +323,8 @@ void Interconnect::debug_print_mid_processing_queue() const {
 
 void Interconnect::debug_print_out_queue() const {
     // 1) Bloqueamos el mutex para proteger la cola
-    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    // std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    std::lock_guard<std::mutex> lock(queues_mtx_);
 
     // 2) Cabecera para identificar la salida
     std::cout << "[Interconnect] Pending messages in out_queue_:\n";
