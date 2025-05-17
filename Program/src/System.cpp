@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <thread>
 #include <bitset>
+#include <cmath>
 
 /* ---------------------------------------- Constructor ---------------------------------------- */
 
@@ -132,8 +133,6 @@ void System::run() {
         // Auto-run: ejecuta step() en bucle hasta terminar
         while (!all_pes_finished() || interconnect_->get_state() != ICState::FINISHED) {
             step();
-            // opcional: pequeña pausa para no saturar la CPU
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
 
@@ -193,7 +192,7 @@ void System::pe_execution_cycle(int pe_id) {
         // —————————— 1) STEPPING ——————————
         // Cada hilo se suspende aquí hasta que System::step() incremente current_step_
 
-        // 0) Esperamos a que current_step_ supere el último valor procesado
+        // Esperamos a que current_step_ supere el último valor procesado
         {
             std::unique_lock<std::mutex> lk(step_mtx_);
             step_cv_.wait(lk, [&]{ return current_step_ > last_step; });
@@ -201,9 +200,10 @@ void System::pe_execution_cycle(int pe_id) {
         // Actualizamos el tracker local
         last_step = current_step_;
 
-        // —— 4) CHEQUEO DE RESPUESTA —— 
+        // —— 2) CHEQUEO DE RESPUESTA —— 
         if (pe.get_response_state() == PEResponseState::WAITING) {
 
+            /* Revisa si hay un response en el out_queue */
             if (interconnect_->has_response(pe_id)) {
 
                 // Se pondra a procesar la respuesta
@@ -214,6 +214,10 @@ void System::pe_execution_cycle(int pe_id) {
 
                 // 6) Calculamos y asignamos la latencia
                 resp.increment_full_latency(10);
+                /*********** Debugging prints ***********/
+                /**/ resp.print_latency_debug();      /**/
+                /**/ resp.print_full_latency_debug(); /**/
+                /****************************************/
 
                 // 2) El PE la procesa
                 std::cout << "[PE " << pe_id << "] Received response: "
@@ -244,6 +248,11 @@ void System::pe_execution_cycle(int pe_id) {
                     // 6) Calculamos y asignamos la latencia
                     resp.increment_full_latency(6 + 3 + 4);
 
+                    /*********** Debugging prints ***********/
+                    /**/ resp.print_latency_debug();      /**/
+                    /**/ resp.print_full_latency_debug(); /**/
+                    /****************************************/
+
                     /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
                     log_message_metrics(resp);
 
@@ -255,9 +264,13 @@ void System::pe_execution_cycle(int pe_id) {
                             << "), enviado INV_ACK con bid=" << resp.get_broadcast_id() << "\n";
 
                     /* State check */
-                    //if(pe.get_actual_message().get_operation() == Operation::BROADCAST_INVALIDATE) {
-                    pe.set_response_state(PEResponseState::WAITING);
-                    //}
+                    if(pe.get_actual_message().get_operation() == Operation::BROADCAST_INVALIDATE) {
+                        pe.set_response_state(PEResponseState::WAITING);
+                    } else {
+                        /* Check PE states */
+                        pe.set_response_state(PEResponseState::COMPLETED);
+                        pe.set_state(PEState::IDLE);
+                    }
 
                 }
 
@@ -283,6 +296,10 @@ void System::pe_execution_cycle(int pe_id) {
 
                     // Calculamos y asignamos la latencia
                     resp.increment_full_latency(4 * resp.get_size());
+                    /*********** Debugging prints ***********/
+                    /**/ resp.print_latency_debug();      /**/
+                    /**/ resp.print_full_latency_debug(); /**/
+                    /****************************************/
 
                     /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
                     log_message_metrics(resp);
@@ -299,6 +316,10 @@ void System::pe_execution_cycle(int pe_id) {
 
                     // Calculamos y asignamos la latencia
                     resp.increment_full_latency(5);
+                    /*********** Debugging prints ***********/
+                    /**/ resp.print_latency_debug();      /**/
+                    /**/ resp.print_full_latency_debug(); /**/
+                    /****************************************/
 
                     /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
                     log_message_metrics(resp);
@@ -315,6 +336,10 @@ void System::pe_execution_cycle(int pe_id) {
 
                     // Calculamos y asignamos la latencia
                     resp.increment_full_latency(5);
+                    /*********** Debugging prints ***********/
+                    /**/ resp.print_latency_debug();      /**/
+                    /**/ resp.print_full_latency_debug(); /**/
+                    /****************************************/
 
                     /*TODO: FIN DE MESSAGE PATH -> EXPORTAR DATOS DE LATENCIA*/
                     log_message_metrics(resp);
@@ -327,23 +352,13 @@ void System::pe_execution_cycle(int pe_id) {
             } else {
                 std::cout << "[PE " << pe_id << "] Waiting for response (?)"
                           << " - PC: " << pe.get_pc() << "\n";
+
+                /* Still on WAITING */
             }
             
         }
 
-        // —————— 2) FINISHED POR PC FUERA DE RANGO ——————
-        // Si el PC ya no apunta a ninguna instrucción válida, terminamos
-        if (pe.get_pc() >= total_instr && interconnect_->all_queues_empty()) {
-            std::cout << "[PE " << pe_id 
-                      << "] PC (" << pe.get_pc() 
-                      << ") >= total_instr (" << total_instr 
-                      << "), cambiando a FINISHED.\n";
-            pe.set_state(PEState::FINISHED);
-            break;
-        }
-
-
-        /* Cuando el PE este IDLE puede obtener una nueva instruccion */
+        /* ————— 4) Cuando el PE este IDLE puede obtener una nueva instruccion */
         if (pe.get_state() == PEState::IDLE && pe.get_pc() < total_instr) {
 
             // —————— 4) FETCH: Obtenemos la instrucción actual ——————
@@ -361,7 +376,11 @@ void System::pe_execution_cycle(int pe_id) {
 
             /* Incremento de latencia: Fetch Instr*/
             pe.get_actual_message().set_full_latency(3); // Ya que sera la primera vez que se agrega
-
+            /******************** Debugging prints *********************/
+            /**/ pe.get_actual_message().print_latency_debug();      /**/
+            /**/ pe.get_actual_message().print_full_latency_debug(); /**/
+            /***********************************************************/
+            
             // Cambiamos el estado a RUNNING, porque ya tenemos la petición lista
             pe.set_state(PEState::RUNNING);
 
@@ -394,7 +413,11 @@ void System::pe_execution_cycle(int pe_id) {
                 pe.get_actual_message().set_data(blocks);
 
                 /* Incremento de latencia: Cache Read */
-                pe.get_actual_message().increment_full_latency(4 * count); 
+                pe.get_actual_message().increment_full_latency(4 * count);
+                /******************** Debugging prints *********************/
+                /**/ pe.get_actual_message().print_latency_debug();      /**/
+                /**/ pe.get_actual_message().print_full_latency_debug(); /**/
+                /***********************************************************/
 
                 // (Optional) debug print to verify
                 std::cout << "[PE " << pe_id 
@@ -407,6 +430,10 @@ void System::pe_execution_cycle(int pe_id) {
 
             /* Incremento de latencia: Send Inter */
             pe.get_actual_message().increment_full_latency(5);
+            /******************** Debugging prints *********************/
+            /**/ pe.get_actual_message().print_latency_debug();      /**/
+            /**/ pe.get_actual_message().print_full_latency_debug(); /**/
+            /***********************************************************/
 
             interconnect_->push_message(pe.get_actual_message());
 
@@ -438,12 +465,37 @@ void System::pe_execution_cycle(int pe_id) {
             pe.set_response_state(PEResponseState::WAITING);
             std::cout << "[PE " << pe_id << "] state = STALLED. Awaiting response.\n";
 
+        } else if (pe.get_response_state() == PEResponseState::WAITING) {
+
+            std::cout << "[PE " << pe_id 
+                    << "]  response state: " << pe.state_to_string() << " (?).\n";
+
         } else {
-            pe.set_response_state(PEResponseState::WAITING);
+            pe.set_response_state(PEResponseState::COMPLETED);
             // Debug: mostramos nuevo PC
             std::cout << "[PE " << pe_id 
                     << "]  estado " << pe.state_to_string() << " (?).\n";
         }
+
+
+        /* CHANGE */
+        /* CAMBIO DE POSICION DONDE SE REVISA ESTO */
+        // ————— 3) FINISHED POR PC FUERA DE RANGO ——————
+        // Si el PC ya no apunta a ninguna instrucción válida, terminamos
+        if (pe.get_pc() >= total_instr &&
+            pe.get_state() != PEState::STALLED &&
+            !interconnect_->has_pending_responses(pe_id) &&
+            !interconnect_->has_pending_mid_processing(pe_id) &&
+            pe.get_response_state() != PEResponseState::WAITING) {
+                std::cout << "[PE " << pe_id 
+                        << "] PC (" << pe.get_pc() 
+                        << ") > total_instr (" << total_instr 
+                        << ") & all queues are empty "
+                        << "& not waiting for response. Cambiando a FINISHED.\n";
+                pe.set_state(PEState::FINISHED);
+                break;
+        }
+
 
     }
 
@@ -559,16 +611,27 @@ void System::interconnect_execution_cycle() {
             /* Extrae el siguiente Message de in_queue para finalizar su espera por procesamiento */
             Message next_msg = interconnect_->pop_next();
 
+            double latency_increment;
+
             /* Incremento de latencia: Wait Queue*/
             if (scheme_ == ArbitScheme::PRIORITY) {
-                uint32_t latency_increment = 5/*0*/ * (next_msg.get_num_lines() + next_msg.get_size()) * (1/next_msg.get_qos());
-                next_msg.increment_full_latency(latency_increment);
-                next_msg.set_latency(latency_increment);
+                latency_increment = 2/*0*/ * 
+                                    (next_msg.get_num_lines() + next_msg.get_size()) *
+                                    (1/next_msg.get_qos());
             } else {
-                uint32_t latency_increment = 5/*0*/ * (next_msg.get_num_lines() + next_msg.get_size());
-                next_msg.increment_full_latency(latency_increment);
-                next_msg.set_latency(latency_increment);
+                latency_increment = 2/*0*/ *
+                                    (next_msg.get_num_lines() + next_msg.get_size());
             }
+
+            std::cerr << "[Debug] latency_increment = " << latency_increment << ".\n";
+
+            next_msg.increment_full_latency(static_cast<uint32_t>(std::round(latency_increment)));
+            next_msg.set_latency(static_cast<uint32_t>(std::round(latency_increment)));
+
+            /************* Debugging prints *************/
+            /**/ next_msg.print_latency_debug();      /**/
+            /**/ next_msg.print_full_latency_debug(); /**/
+            /********************************************/
             
 
             // 3) DECISION: ¿qué tipo de operación es?
@@ -580,6 +643,8 @@ void System::interconnect_execution_cycle() {
                 uint64_t address = next_msg.get_address();
                 uint32_t size = next_msg.get_size();
                 uint32_t   status    = 0x1;                  // OK por defecto
+
+                std::cerr << "[IC] READ_MEM escribirá " << size << " bytes.\n";
 
                 // 3) Leemos del SharedMemory
                 std::vector<std::vector<std::uint8_t>> memory_data;
@@ -607,13 +672,23 @@ void System::interconnect_execution_cycle() {
                 );
 
                 // Pasar latencia del Message de Instruccion al de Respuesta
-                read_resp.set_full_latency(next_msg.get_full_latency()* 0.01);
-                read_resp.set_latency(next_msg.get_latency()* 0.01);
+                read_resp.set_full_latency(next_msg.get_full_latency()); /* CHANGE */
+                read_resp.set_latency(next_msg.get_latency()); /* CHANGE */
+
+                /************* Debugging prints **************/
+                /**/ read_resp.print_latency_debug();      /**/
+                /**/ read_resp.print_full_latency_debug(); /**/
+                /*********************************************/
 
                 // 6) Calculamos y asignamos la latencia
-                uint32_t incr_lat = (6/*0*/ + size) * size;
+                uint32_t incr_lat = (60 + size); /* CHANGE */
                 read_resp.increment_full_latency(incr_lat);
                 read_resp.increment_latency(incr_lat);
+
+                /************* Debugging prints **************/
+                /**/ read_resp.print_latency_debug();      /**/
+                /**/ read_resp.print_full_latency_debug(); /**/
+                /*********************************************/
 
                 // 7) Encolamos en la etapa media para simular la latencia
                 interconnect_->push_mid_processing(read_resp);
@@ -627,6 +702,8 @@ void System::interconnect_execution_cycle() {
                 uint64_t   address   = next_msg.get_address();
                 auto       blocks    = next_msg.get_data();  // vector<vector<uint8_t>>
                 uint32_t   status    = 0x1;                  // OK por defecto
+
+                std::cerr << "[IC] WRITE_MEM escribirá " << num_lines << " lineas.\n";
 
                 try {
                     // 3) Volcamos al fichero de texto de SharedMemory
@@ -654,13 +731,23 @@ void System::interconnect_execution_cycle() {
                 );
 
                 // Pasar latencia del Message de Instruccion al de Respuesta
-                write_resp.set_full_latency(next_msg.get_full_latency() * 0.01);
-                write_resp.set_latency(next_msg.get_latency() * 0.01);
+                write_resp.set_full_latency(next_msg.get_full_latency());  /* CHANGE */
+                write_resp.set_latency(next_msg.get_latency());  /* CHANGE */
+
+                /************** Debugging prints **************/
+                /**/ write_resp.print_latency_debug();      /**/
+                /**/ write_resp.print_full_latency_debug(); /**/
+                /**********************************************/
 
                 // 6) Calculamos y asignamos la latencia
-                uint32_t incr_lat = (8/*0*/ + num_lines) * num_lines;
+                uint32_t incr_lat = (80 + num_lines) * (num_lines * 0.04); /* CHANGE */
                 write_resp.increment_full_latency(incr_lat);
                 write_resp.increment_latency(incr_lat);
+
+                /************** Debugging prints **************/
+                /**/ write_resp.print_latency_debug();      /**/
+                /**/ write_resp.print_full_latency_debug(); /**/
+                /**********************************************/
 
                 // 7) Encolamos en la etapa media para simular la latencia
                 interconnect_->push_mid_processing(write_resp);
@@ -698,6 +785,11 @@ void System::interconnect_execution_cycle() {
                     inv_line_msg.set_full_latency(next_msg.get_full_latency());
                     inv_line_msg.set_latency(next_msg.get_latency());
 
+                    /*************** Debugging prints ***************/
+                    /**/ inv_line_msg.print_latency_debug();      /**/
+                    /**/ inv_line_msg.print_full_latency_debug(); /**/
+                    /************************************************/
+
                     // 2) Se clava el broadcast_id en el Message para que se propague
                     inv_line_msg.set_broadcast_id(bid);
 
@@ -705,6 +797,11 @@ void System::interconnect_execution_cycle() {
                     uint32_t incr_lat = 6;
                     inv_line_msg.increment_full_latency(incr_lat);
                     inv_line_msg.increment_latency(incr_lat);
+
+                    /*************** Debugging prints ***************/
+                    /**/ inv_line_msg.print_latency_debug();      /**/
+                    /**/ inv_line_msg.print_full_latency_debug(); /**/
+                    /************************************************/
 
                     // 3) Encolamos en la etapa media para simular la latencia
                     interconnect_->push_mid_processing(inv_line_msg);
@@ -769,12 +866,22 @@ void System::interconnect_execution_cycle() {
                     inv_complete.set_full_latency(5 * total_pes_);
                     inv_complete.set_latency(5 * total_pes_);
 
+                    /*************** Debugging prints ***************/
+                    /**/ inv_complete.print_latency_debug();      /**/
+                    /**/ inv_complete.print_full_latency_debug(); /**/
+                    /************************************************/
+
                     inv_complete.set_broadcast_id(bid);
 
                     // 6) Calculamos y asignamos la latencia
                     uint32_t incr_lat = 5;
                     inv_complete.increment_full_latency(incr_lat);
                     inv_complete.increment_latency(incr_lat);
+
+                    /*************** Debugging prints ***************/
+                    /**/ inv_complete.print_latency_debug();      /**/
+                    /**/ inv_complete.print_full_latency_debug(); /**/
+                    /************************************************/
 
                     // 8) Encolamos en la etapa media para simular la latencia
                     interconnect_->push_mid_processing(inv_complete);
@@ -912,7 +1019,6 @@ void System::system_test_G(const std::string& file_path) {
 
     std::cout << "\n[TEST] System Test Complete.\n";
 }
-    
 
 void System::system_test_R() {
 	std::cout << "\n[TEST] Starting System Test R...\n";

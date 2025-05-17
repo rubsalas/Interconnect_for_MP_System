@@ -77,12 +77,12 @@ int main() {
 			case 5:
 				show_statistics();
 				break;
-			case 8:
-				test_G();
-				break;
-			case 9:
-				test_R();
-				break;
+			// case 8:
+			// 	test_G();
+			// 	break;
+			// case 9:
+			// 	test_R();
+			// 	break;
 			case -1:
 				define_PEs();
 				break;
@@ -125,11 +125,11 @@ void show_menu() {
 	std::cout << "\n--- Main Menu ---\n"
 			<< "1. Generate Instruction Files\n"
 			<< "2. Compile Assembly\n"
-			<< "3. Initialize System\n"	// <-- MODIFICADO
+			<< "3. Initialize System\n"
 			<< "4. Run Simulation\n"
 			<< "5. Show Statistics\n"
-			<< "8. Test G\n"
-			<< "9. Test R\n"
+			// << "8. Test G\n"
+			// << "9. Test R\n"
 			<< "0. Exit\n";
 }
 

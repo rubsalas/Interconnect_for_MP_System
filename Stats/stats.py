@@ -6,7 +6,7 @@ import seaborn as sns
 sns.set(style="whitegrid")
 
 # Leer archivo
-file_path = "../latency_log.txt"
+file_path = "../Program/latency_log.txt"
 df = pd.read_csv(file_path, delim_whitespace=True, header=None,
                  names=["pe_src", "QoS", "operation", "size", "bytes", "latency"])
 

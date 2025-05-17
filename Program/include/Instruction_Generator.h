@@ -6,7 +6,7 @@
 
 class InstructionGenerator {
 public:
-    InstructionGenerator(int num_pes, int instructions_per_file = 10);
+    InstructionGenerator(int num_pes, int instructions_per_file = 30);
     void generate() const;
 
 private:

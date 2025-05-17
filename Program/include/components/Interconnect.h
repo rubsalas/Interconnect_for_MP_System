@@ -59,7 +59,8 @@ public:
     uint32_t register_broadcast(int origin_pe);
 
     /**
-     * @brief Devuelve true si hay al menos una respuesta pendiente para el PE dado.
+     * @brief Devuelve true si hay al menos una respuesta pendiente para el PE dado
+     *        en el out_queue.
      */
     bool has_response(int pe_id) const;
 
@@ -122,6 +123,17 @@ public:
 /* ------------------------------------ */
 
     /**
+     * @brief Comprueba si hay mensajes pendientes en la cola de procesamiento medio para un PE dado.
+     *
+     * Esta función permite verificar si aún existe al menos un mensaje en mid_processing_
+     * cuya ID de destino coincida con el identificador del PE especificado.
+     *
+     * @param pe_id Identificador del Processing Element (PE).
+     * @return true si existe al menos un mensaje en la cola media para el PE; false en caso contrario.
+     */
+    bool has_pending_mid_processing(int pe_id) const;
+
+    /**
      * @brief Encola un mensaje en mid_processing_queue_.
      *
      * Esta cola simula la latencia de los mensajes “en vuelo” dentro
@@ -155,6 +167,16 @@ public:
 /*                                      */
 /* ------------------------------------ */
 
+    /**
+     * @brief Comprueba si hay respuestas pendientes en la cola de salida para un PE dado.
+     *
+     * Esta función permite verificar si aún existe al menos un mensaje en out_queue_
+     * cuya ID de destino coincida con el identificador del PE especificado.
+     *
+     * @param pe_id Identificador del Processing Element (PE).
+     * @return true si existe al menos un mensaje pendiente para el PE; false en caso contrario.
+     */
+    bool has_pending_responses(int pe_id) const;
 
     /**
      * @brief Encola un mensaje en la cola de respuestas salientes según el esquema de arbitraje.

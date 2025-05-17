@@ -92,31 +92,55 @@ void Message::decrement_full_latency(uint32_t delta) {
 
 /* ---------------------------------------- Testing -------------------------------------------- */
 
+const char* Message::OperationName(Operation op) {
+    switch (op) {
+        case Operation::READ_MEM:             return "READ_MEM";
+        case Operation::WRITE_MEM:            return "WRITE_MEM";
+        case Operation::BROADCAST_INVALIDATE: return "BROADCAST_INVALIDATE";
+        case Operation::INV_LINE:             return "INV_LINE";
+        case Operation::INV_ACK:              return "INV_ACK";
+        case Operation::INV_COMPLETE:         return "INV_COMPLETE";
+        case Operation::READ_RESP:            return "READ_RESP";
+        case Operation::WRITE_RESP:           return "WRITE_RESP";
+        case Operation::END:                  return "END";
+        case Operation::UNDEFINED:            return "UNDEFINED";
+        default:                              return "UNKNOWN_OP";
+    }
+}
 
 std::string Message::to_string() const {
-    auto operation_name = [](Operation k) {
-        switch (k) {
-            case Operation::READ_MEM:               return "READ_MEM";
-            case Operation::WRITE_MEM:              return "WRITE_MEM";
-            case Operation::BROADCAST_INVALIDATE:   return "BCAST_INV";
-            case Operation::INV_LINE:               return "INV_LINE";
-            case Operation::INV_ACK:                return "INV_ACK";
-            case Operation::INV_COMPLETE:           return "INV_COMPLETE";
-            case Operation::READ_RESP:              return "READ_RESP";
-            case Operation::WRITE_RESP:             return "WRITE_RESP";
-            case Operation::END:                    return "END";
-            case Operation::UNDEFINED:              return "UNDEFINED";
-        }
-        return "UNKNOWN";
-    };
-
     char buf[256];
     std::snprintf(buf, sizeof(buf),
-                  "[MSG %s src=%d dst=%d qos=%u addr=0x%016llX size=%u nl=%u sl=%u cl=%u status=%u data_words=%zu latency=%u]",
-                  operation_name(operation_), src_id_, dest_id_, qos_,
-                  static_cast<unsigned long long>(address_), size_, num_lines_,
-                  start_line_, cache_line_, status_, data_.size(), latency_);
+                  "[MSG %s src=%d dst=%d qos=%u addr=0x%016llX size=%u nl=%u sl=%u cl=%u status=%u data_words=%zu latency=%u full_latency=%u]",
+                  OperationName(operation_),
+                  src_id_,
+                  dest_id_,
+                  qos_,
+                  static_cast<unsigned long long>(address_),
+                  size_,
+                  num_lines_,
+                  start_line_,
+                  cache_line_,
+                  status_,
+                  data_.size(),
+                  latency_,
+                  full_latency_
+    );
     return std::string(buf);
+}
+
+void Message::print_latency_debug() const {
+    std::cout << "[Debug][Latency] op=" << OperationName(operation_)
+              << " src="  << src_id_
+              << " dst="  << dest_id_
+              << "  latency="   << latency_ << " cycles\n";
+}
+
+void Message::print_full_latency_debug() const {
+    std::cout << "[Debug][FullLatency] op=" << OperationName(operation_)
+              << " src="        << src_id_
+              << " dst="        << dest_id_
+              << "  full_latency=" << full_latency_ << " cycles\n\n";
 }
 
 /* --------------------------------------------------------------------------------------------- */

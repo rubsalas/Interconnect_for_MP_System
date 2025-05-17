@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -131,7 +132,7 @@ public:
      */
     void decrement_latency(uint32_t cycles = 1);
 
-/********************/
+    /********************/
 
     /// @brief Devuelve la latencia acumulada de este mensaje.
     uint32_t get_full_latency() const;
@@ -149,12 +150,34 @@ public:
 
 /* ---------------------------------------- Testing -------------------------------------------- */
 
+    /**
+     * @brief Convierte un valor de la enumeración Operation a su nombre en texto.
+     *
+     * Esta función permite obtener la representación textual de una operación
+     * para facilitar debugging y logging.
+     *
+     * @param op Operación a convertir.
+     * @return Cadena constante con el nombre de la operación.
+     */
+    static const char* OperationName(Operation op);
 
     /**
      * @brief Genera una representación en texto del mensaje para depuración.
      * @return Cadena con todos los campos del mensaje.
      */
     std::string to_string() const;
+
+    /** 
+     * @brief Imprime por consola información de debug de la latencia restante. 
+     */
+    void print_latency_debug() const;
+
+    /** 
+     * @brief Imprime por consola información de debug de la latencia total. 
+     */
+    void print_full_latency_debug() const;
+
+/* --------------------------------------------------------------------------------------------- */
 
 private:
     Operation operation_{Operation::UNDEFINED}; /**< Tipo de operación. */
@@ -175,4 +198,3 @@ private:
     uint32_t broadcast_id_{0};      /**< ID del Broadcast, si es un Message de esos. */
 };
 
-/* --------------------------------------------------------------------------------------------- */

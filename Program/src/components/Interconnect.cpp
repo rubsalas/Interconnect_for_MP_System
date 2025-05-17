@@ -127,6 +127,14 @@ bool Interconnect::in_queue_empty() const {
 /*                                      */
 /* ------------------------------------ */
 
+bool Interconnect::has_pending_mid_processing(int pe_id) const {
+    std::lock_guard<std::mutex> lock(mid_processing_mtx_);
+    return std::any_of(
+        mid_processing_queue_.begin(), mid_processing_queue_.end(),
+        [pe_id](const Message &m) { return m.get_dest_id() == pe_id; }
+    );
+}
+
 void Interconnect::push_mid_processing(const Message& m) {
     // 1) Bloqueo para acceso concurrente
     std::lock_guard<std::mutex> lock(mid_processing_mtx_);
@@ -166,6 +174,13 @@ size_t Interconnect::mid_processing_size() const {
 /*                                      */
 /* ------------------------------------ */
 
+bool Interconnect::has_pending_responses(int pe_id) const {
+    std::lock_guard<std::mutex> lock(out_queue_mtx_);
+    return std::any_of(
+        out_queue_.begin(), out_queue_.end(),
+        [pe_id](const Message &m) { return m.get_dest_id() == pe_id; }
+    );
+}
 
 void Interconnect::push_out_queue(const Message& m) {
     // 1) Bloqueamos el mutex para asegurar acceso exclusivo
