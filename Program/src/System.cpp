@@ -660,11 +660,11 @@ void System::interconnect_execution_cycle() {
             /* Incremento de latencia: Wait Queue*/
             if (scheme_ == ArbitScheme::PRIORITY) {
                 latency_increment = 2/*0*/ * 
-                                    (next_msg.get_num_lines() + next_msg.get_size()) *
+                                    (next_msg.get_num_lines() + next_msg.get_size() + 1) *
                                     (1/next_msg.get_qos());
             } else {
                 latency_increment = 2/*0*/ *
-                                    (next_msg.get_num_lines() + next_msg.get_size());
+                                    (next_msg.get_num_lines() + next_msg.get_size() + 1);
             }
 
             std::cerr << "[Debug] latency_increment = " << latency_increment << ".\n";
